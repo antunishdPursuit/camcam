@@ -1,4 +1,4 @@
-import { isThumbsUp } from './utils/gestureUtils.js';
+import { getGesture } from './utils/gestureUtils.js';
 import { drawHand, drawVideoFrame } from './utils/drawUtils.js';
 
 const video = document.getElementById('input_video');
@@ -25,7 +25,9 @@ hands.onResults((results) => {
     const landmarks = results.multiHandLandmarks[0];
     drawHand(ctx, landmarks, canvas.width, canvas.height);
 
-    gestureDisplay.textContent = isThumbsUp(landmarks) ? 'Thumbs Up 👍' : 'None';
+
+    const gesture = getGesture(landmarks);
+    gestureDisplay.textContent = gesture ? `Gesture: ${gesture}` : 'None';
   } else {
     gestureDisplay.textContent = 'None';
   }
@@ -50,8 +52,8 @@ document.getElementById('startCameraBtn').addEventListener('click', () => {
 // ⛔️ STOP camera
 document.getElementById('stopCameraBtn').addEventListener('click', () => {
   if (camera) {
-    camera.stop();  // Stops frame loop
-    video.srcObject = null; // Release camera stream
+    camera.stop();  
+    video.srcObject = null; 
   }
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   gestureDisplay.textContent = 'None';

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hand Tracking App</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+</head>
+  <body>
+    <button id="toggleCameraBtn">Start Camera</button>
+    <header>
+      <h1>CamCam</h1>
+      <p>Make a gesture. Look through the circle. Let magic happen.</p>
+    </header>
+    <main class="container">
+      <canvas class="output_canvas" width="640" height="480"></canvas>
+      <video class="input_video" autoplay muted playsinline></video>
+    </main>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

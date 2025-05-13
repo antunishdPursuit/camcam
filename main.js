@@ -6,6 +6,7 @@ const canvas = document.getElementById('output_canvas');
 const ctx = canvas.getContext('2d');
 const gestureDisplay = document.querySelector('#gesture span');
 
+
 const hands = new Hands({
   locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
 });
@@ -31,7 +32,9 @@ hands.onResults((results) => {
 });
 
 let camera;
-document.getElementById('toggleCameraBtn').addEventListener('click', () => {
+
+// 🎬 START camera
+document.getElementById('startCameraBtn').addEventListener('click', () => {
   if (!camera) {
     camera = new Camera(video, {
       onFrame: async () => {
@@ -40,6 +43,16 @@ document.getElementById('toggleCameraBtn').addEventListener('click', () => {
       width: 640,
       height: 480
     });
-    camera.start();
   }
+  camera.start();
+});
+
+// ⛔️ STOP camera
+document.getElementById('stopCameraBtn').addEventListener('click', () => {
+  if (camera) {
+    camera.stop();  // Stops frame loop
+    video.srcObject = null; // Release camera stream
+  }
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  gestureDisplay.textContent = 'None';
 });

@@ -3,34 +3,39 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hand Tracking App</title>
+    <title>CamCam</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png" />
-    <link rel="manifest" href="/site.webmanifest" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
-    <script defer src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fingerpose/dist/fingerpose.min.js"></script>
+    <link rel="manifest" href="assets/site.webmanifest" />
+    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;700&display=swap" rel="stylesheet" />
+    <script defer src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
     <script type="module" src="main.js"></script>
   </head>
   <body>
-    <div id="controls">
-      <button id="startCameraBtn">Start Camera</button>
-      <button id="stopCameraBtn">Stop Camera</button>
-    </div>
-    
     <header>
       <h1>CamCam</h1>
       <p>Make a gesture. Look through the circle. Let magic happen.</p>
     </header>
 
+    <div id="controls">
+      <button id="startCameraBtn" type="button">Start Camera</button>
+      <button id="stopCameraBtn" type="button" disabled>Stop Camera</button>
+      <button id="testSummonBtn" type="button" hidden>Test Summon</button>
+    </div>
+
+    <p id="status" role="status" aria-live="polite"></p>
+
     <main class="container">
-      <canvas id="output_canvas" width="640" height="480"></canvas>
-      <video id="input_video" autoplay muted playsinline></video>
+      <canvas id="output_canvas" width="640" height="480" aria-label="Camera view with hand landmarks"></canvas>
+      <video id="input_video" muted playsinline></video>
+      <div class="stage-mark" aria-hidden="true"></div>
+      <canvas id="effect_canvas" width="640" height="480" aria-hidden="true"></canvas>
     </main>
-    
-    <div id="gesture">Gesture: <span>None</span></div>
+
+    <div id="gesture" aria-live="polite">Gesture: <span>None</span></div>
+    <canvas id="summon_overlay" aria-hidden="true"></canvas>
+    <p id="proofReadout" hidden></p>
   </body>
 </html>

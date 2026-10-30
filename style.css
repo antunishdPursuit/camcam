@@ -4,16 +4,36 @@
   box-sizing: border-box;
 }
 
+/* Colour tokens for camcam. */
+:root {
+  --bg: #140a0b;
+  --text: #f3e9dc;
+  --text-muted: #b9a99a;
+  --accent: #f2a33a;
+  --danger: #ff8a7a;
+  --frame: #7a1e24;
+  --stage: #2a1f1c;
+  --btn-bg: #a82e22;
+  --btn-text: #f3e9dc;
+  --btn-hover: #8f2419;
+  --btn-alt-text: #f3e9dc;
+  --btn-alt-border: #f3e9dc66;
+  --talisman: #efe3cc;
+  --disabled-bg: #2b1d1d;
+  --disabled-text: #7d6b66;
+  --font: 'Shippori Mincho B1', serif;
+}
+
 body {
-  font-family: 'Inter', sans-serif;
-  background-color: #0e0e0e;
-  color: #fff;
+  font-family: var(--font);
+  background-color: var(--bg);
+  color: var(--text);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
   min-height: 100vh;
-  padding-top: 40px;
+  padding: 40px 16px;
 }
 
 header {
@@ -24,47 +44,167 @@ header {
 header h1 {
   font-size: 2rem;
   font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
 }
 
 header p {
   font-size: 1rem;
-  color: #aaa;
+  color: var(--text-muted);
   margin-top: 8px;
 }
 
-.container {
-  position: relative;
-  width: 640px;
-  height: 480px;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 0 20px rgba(0, 255, 204, 0.3);
+#controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
 }
 
-.input_video {
-  display: none;
-}
-
-.output_canvas {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  background: #000;
-}
-
-#toggleCameraBtn {
-  margin-top: 20px;
+#controls button {
   padding: 12px 24px;
+  font-family: var(--font);
   font-size: 1rem;
   font-weight: bold;
-  background: #00ffd5;
-  color: #000;
-  border: none;
-  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: 2px solid var(--btn-bg);
+  border-radius: 0;
   cursor: pointer;
   transition: background 0.3s;
 }
 
-#toggleCameraBtn:hover {
-  background: #00c9ab;
+#controls button:hover:not(:disabled) {
+  background: var(--btn-hover);
+}
+
+#controls #stopCameraBtn {
+  background: transparent;
+  color: var(--btn-alt-text);
+  border-color: var(--btn-alt-border);
+}
+
+#controls button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+#controls button:disabled,
+#controls #stopCameraBtn:disabled {
+  background: var(--disabled-bg);
+  color: var(--disabled-text);
+  border-color: var(--disabled-bg);
+  cursor: not-allowed;
+}
+
+#status {
+  min-height: 1.5em;
+  margin: 16px 0;
+  max-width: 640px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+#status[data-state="error"] {
+  color: var(--danger);
+}
+
+.container {
+  position: relative;
+  width: min(640px, 100%);
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--stage);
+  border: 2px solid var(--frame);
+}
+
+/* Talisman strip hanging from the frame. */
+.container::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: -2px;
+  left: 20px;
+  width: 26px;
+  height: 64px;
+  background: linear-gradient(var(--btn-bg), var(--btn-bg)) center 10px / 2px 40px no-repeat, var(--talisman);
+  border: 1px solid var(--frame);
+}
+
+.container::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 1px solid #f2a33a55;
+  pointer-events: none;
+}
+
+#input_video {
+  display: none;
+}
+
+#output_canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Full-page layer the fox attacks from; never blocks clicks. */
+#summon_overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10;
+  pointer-events: none;
+}
+
+#effect_canvas {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+#controls #testSummonBtn {
+  background: transparent;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+#controls button[hidden] {
+  display: none;
+}
+
+/* Amber eye-ring target, shown only while the camera is off. */
+.stage-mark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 96px;
+  height: 96px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 3px solid var(--accent);
+  box-shadow: 0 0 0 12px #f2a33a22, inset 0 0 0 10px var(--stage), inset 0 0 0 13px var(--accent);
+}
+
+body[data-state="running"] .stage-mark {
+  display: none;
+}
+
+#gesture {
+  margin-top: 16px;
+  color: var(--text-muted);
+}
+
+#proofReadout {
+  margin-top: 8px;
+  max-width: 640px;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--accent);
 }

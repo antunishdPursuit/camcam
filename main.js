@@ -29,6 +29,7 @@ const summonArt = loadSummonArt();
 const effect = createSummonEffect({
   boxCanvas: document.getElementById('effect_canvas'),
   pageCanvas: document.getElementById('summon_overlay'),
+  camera: canvas,
   box: document.querySelector('.container'),
   reducedMotion: () => reducedMotionQuery.matches,
   art: summonArt
@@ -155,4 +156,5 @@ renderStatus('idle', 'Choose Start Camera to begin. Video stays in this browser 
 
 // ?proof&at=1500 freezes the effect at that millisecond for inspection.
 const freezeAt = Number(new URLSearchParams(location.search).get('at'));
-if (proofMode && freezeAt > 0) summonArt.finally(() => effect.freezeAt(freezeAt));
+const freezeBite = Number(new URLSearchParams(location.search).get('bite')) || 0;
+if (proofMode && freezeAt > 0) summonArt.finally(() => effect.freezeAt(freezeAt, freezeBite));

@@ -1,28 +1,28 @@
-import { effectFrame } from './summonTimeline.js';
+import { biteTiming, clipFrame, effectFrame } from './summonTimeline.js';
 import { PLACEMENT, foxRect, swallowScale } from './foxPlacement.js';
 import { LANDMARK, palmLength } from './landmarks.js';
 
 // Summon effect renderer.
 // - Fire: drawn on the camera-box canvas, anchored to the thumb/index ring
 //   while charging.
-// - Fox attack: drawn on a full-page canvas. The side-view fox comes in from
-//   the right edge, snaps its jaw shut on the camera box, the box goes dark and
-//   shakes, the fox retreats and the box comes back. Timing lives in
+// - Fox attack: drawn on a full-page canvas from sprite sheets. The full-body
+//   fox runs in from the right edge while the camera box shrinks, plays a bite
+//   clip whose jaws snap shut on the box (which vanishes), runs on out the left
+//   edge, and the box comes back. Timing and clip playback live in
 //   summonTimeline.js, placement in foxPlacement.js.
 const FIRE = ['#ffd27a', '#ff9a2e', '#ff5a1f', '#c2261b'];
 const RING_POINTS = [2, 3, 4, 6, 7, 8]; // thumb and index joints around the ring
 
-// `art` is an optional promise of the generated layers (see summonArt.js).
-// Until it resolves, or if it fails, fire falls back to drawn particles and
-// the attack shows only the box going dark.
-export function createSummonEffect({ boxCanvas, pageCanvas, box, reducedMotion = () => false, art: artPromise }) {
+// `art` is an optional promise of { flames, fox } from loadSummonArt(), which
+// never rejects; either part may be null. Until it resolves, or for a missing
+// part, fire falls back to drawn particles and the attack shows only the box.
+export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reducedMotion = () => false, art: artPromise }) {
   const ctx = boxCanvas.getContext('2d');
   const W = boxCanvas.width;
   const H = boxCanvas.height;
   const page = pageCanvas.getContext('2d');
   let art = null;
-  artPromise?.then((loaded) => { art = loaded; })
-    .catch((error) => console.warn('Summon art failed to load; using fallbacks.', error));
+  artPromise?.then((loaded) => { art = loaded; });
   let particles = [];
   let hand = null;
   let charging = false;
@@ -98,7 +98,7 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, reducedMotion =
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       ctx.globalAlpha = p.life * 0.8;
-      if (art) {
+      if (art?.flames) {
         // Flame sprite with brightness-based alpha, blended additively.
         const size = p.size * 1.9 * (0.6 + 0.4 * p.life);
         ctx.save();
@@ -134,6 +134,7 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, reducedMotion =
   function clearPage() {
     page.setTransform(1, 0, 0, 1, 0, 0);
     page.clearRect(0, 0, pageCanvas.width, pageCanvas.height);
+    pawParticles = [];
     box.style.transform = '';
     delete box.dataset.summonScale;
     box.style.opacity = '';
@@ -149,48 +150,170 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, reducedMotion =
     return { x: rect.left + rect.width / 2 - w / 2, y: rect.top + rect.height / 2 - h / 2, w, h };
   }
 
-  function drawAttack(f, now) {
+  // Which run and bite clips this summon uses, picked at random per summon.
+  // Clips are tagged with the fox they were generated from; a run is always
+  // paired with a bite of the same fox so its look doesn't change mid-attack.
+  let chosen = null;
+
+  function pickClips(random = Math.random) {
+    const fox = art?.fox;
+    if (!fox) return null;
+    const bite = fox.bite[Math.floor(random() * fox.bite.length)];
+    const runs = fox.run.filter((clip) => clip.fox === bite.fox);
+    const pool = runs.length ? runs : fox.run;
+    const run = pool[Math.floor(random() * pool.length)];
+    return { run, bite, timing: biteTiming(bite) };
+  }
+
+  // Draw one frame of a clip. Clips are positioned in the coordinates of the
+  // source video frame (sourceCrop), so switching from run to bite doesn't jump.
+  function drawSprite(clip, index, r, dx, dy) {
+    const video = art.fox.video;
+    const [x0, y0, x1, y1] = clip.sourceCrop;
+    const sx = (index % clip.cols) * clip.frameW;
+    const sy = Math.floor(index / clip.cols) * clip.frameH;
+    page.drawImage(
+      clip.img, sx, sy, clip.frameW, clip.frameH,
+      r.x + (x0 / video.w) * r.w + dx, r.y + (y0 / video.h) * r.h + dy,
+      ((x1 - x0) / video.w) * r.w, ((y1 - y0) / video.h) * r.h
+    );
+  }
+
+  // Spirit fire bursting from the paws that touch down, trailing behind the
+  // running fox, so it reads as running on fire rather than on a hidden floor.
+  let pawParticles = [];
+
+  function emitPawFire(clip, index, r, running) {
+    for (const [fx, fy] of clip.feet[index] ?? []) {
+      if (Math.random() > 0.7) continue;
+      pawParticles.push({
+        x: r.x + fx * r.w + (Math.random() - 0.5) * r.h * 0.04,
+        y: r.y + fy * r.h,
+        vx: (running ? 140 : 40) + Math.random() * 60,
+        vy: -(30 + Math.random() * 70),
+        life: 1,
+        decay: 2.2 + Math.random(),
+        size: r.h * (0.05 + Math.random() * 0.05),
+        sprite: Math.floor(Math.random() * 2),
+        rotation: (Math.random() - 0.5) * 0.6
+      });
+    }
+  }
+
+  function drawPawFire(dt) {
+    pawParticles = pawParticles.filter((p) => (p.life -= p.decay * dt) > 0);
+    page.save();
+    page.globalCompositeOperation = 'lighter';
+    for (const p of pawParticles) {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      page.globalAlpha = p.life * 0.85;
+      if (art?.flames) {
+        const size = p.size * (0.7 + 0.3 * p.life);
+        page.save();
+        page.translate(p.x, p.y);
+        page.rotate(p.rotation);
+        page.drawImage(art.flames[p.sprite], -size / 2, -size * 0.8, size, size);
+        page.restore();
+      } else {
+        page.fillStyle = FIRE[p.sprite + 1];
+        page.beginPath();
+        page.arc(p.x, p.y, p.size * 0.3 * p.life, 0, Math.PI * 2);
+        page.fill();
+      }
+    }
+    page.restore();
+  }
+
+  // The box's stage and border colours, read once per summon (reading styles
+  // every frame right after writing transform/opacity would force a recalc).
+  let boxColors = null;
+
+  function readBoxColors() {
+    const style = getComputedStyle(box);
+    return { stage: style.backgroundColor, border: style.borderTopColor };
+  }
+
+  // The live camera drawn on the page layer, on top of the fox: at the box's
+  // spot while it shrinks, then clamped in the jaws (following the mouth frame
+  // by frame) until it is gulped down. Mirrored like the box itself, with the
+  // box's own fire canvas on top so the summon burst doesn't vanish.
+  function drawHeldCamera(center, w, h, fullW) {
+    boxColors ??= readBoxColors();
+    page.save();
+    page.translate(center.x, center.y);
+    page.fillStyle = boxColors.stage;
+    page.fillRect(-w / 2, -h / 2, w, h);
+    page.save();
+    page.scale(-1, 1);
+    if (camera) page.drawImage(camera, -w / 2, -h / 2, w, h);
+    page.drawImage(boxCanvas, -w / 2, -h / 2, w, h);
+    page.restore();
+    page.lineWidth = Math.max(1, 2 * (w / Math.max(1, fullW)));
+    page.strokeStyle = boxColors.border;
+    page.strokeRect(-w / 2, -h / 2, w, h);
+    page.restore();
+  }
+
+  // Mouth point of a clip frame in page pixels.
+  function mouthAt(clip, index, r) {
+    const [mx, my] = clip.mouths?.[index] ?? chosen.bite.mouth;
+    return { x: r.x + mx * r.w, y: r.y + my * r.h };
+  }
+
+  function drawAttack(f, now, dt = 0) {
     fitPage();
     const boxRect = fullBoxRect();
     const shakeX = f.shake * Math.sin(now / 16) * 12;
     const shakeY = f.shake * Math.cos(now / 21) * 6;
 
     const viewport = { w: innerWidth, h: innerHeight };
-    const geometry = art && {
+    const geometry = chosen && {
       box: boxRect,
       viewport,
-      mouth: art.sideMouth,
-      aspect: art.foxHead.width / art.foxHead.height
+      frame: art.fox.video,
+      mouth: chosen.bite.mouth,
+      gape: chosen.bite.gape
     };
 
-    // The camera box shrinks to fit the mouth (smaller when a short window
-    // caps the fox's size), vanishes when the jaw shuts, and grows back.
+    // The camera box shrinks to fit between the jaws (smaller when a short
+    // window caps the fox's size). While the page layer draws the camera, the
+    // box in the layout is hidden; it grows back in place at the end.
     const smallest = geometry ? swallowScale(geometry) : PLACEMENT.swallowScale;
     const scale = 1 - (1 - smallest) * f.boxShrink;
     box.dataset.summonScale = String(scale);
     box.style.transform = scale < 1 ? `scale(${scale})` : '';
     box.style.opacity = f.boxAlpha < 1 ? String(f.boxAlpha) : '';
 
+    let mouth = null;
     if (geometry && f.foxIn > 0 && f.foxCross < 1 && f.foxAlpha > 0) {
-      const r = foxRect({
-        ...geometry,
-        foxIn: f.foxIn,
-        foxCross: f.foxCross,
-        thrust: f.thrust
-      });
-      const hingeX = r.x + art.sideHinge[0] * r.w + shakeX;
-      const hingeY = r.y + art.sideHinge[1] * r.h + shakeY;
+      const r = foxRect({ ...geometry, foxIn: f.foxIn, foxCross: f.foxCross });
+      r.x += shakeX;
+      r.y += shakeY;
+      const clip = f.sprite === 'bite' ? chosen.bite : chosen.run;
+      const index = clipFrame(clip, f.spriteMs, f.sprite === 'run');
       page.save();
       page.globalAlpha = f.foxAlpha;
-      // Lower jaw rotates about the hinge; the head layer covers the seam.
-      page.save();
-      page.translate(hingeX, hingeY);
-      // Positive canvas rotation is clockwise: the jaw swings up to shut.
-      page.rotate((art.sideCloseDeg * Math.PI / 180) * f.jawClose);
-      page.drawImage(art.foxJaw, r.x + shakeX - hingeX, r.y + shakeY - hingeY, r.w, r.h);
+      drawSprite(clip, index, r, 0, 0);
       page.restore();
-      page.drawImage(art.foxHead, r.x + shakeX, r.y + shakeY, r.w, r.h);
-      page.restore();
+      if (!reduced) emitPawFire(clip, index, r, f.sprite === 'run');
+
+      if (f.boxHeld) {
+        // Follow the mouth, measured relative to where it was at the snap so
+        // the camera doesn't jump when the jaws close on it.
+        const atBite = foxRect({ ...geometry, foxIn: 1, foxCross: 0 });
+        const snapMouth = mouthAt(chosen.bite, chosen.bite.snapFrame, atBite);
+        const current = mouthAt(clip, index, r);
+        mouth = { x: boxRect.x + boxRect.w / 2 + current.x - snapMouth.x, y: boxRect.y + boxRect.h / 2 + current.y - snapMouth.y };
+      }
+    }
+    drawPawFire(dt);
+
+    if (f.boxOnPage && f.gulp < 1 && (mouth || !f.boxHeld)) {
+      // Before the snap it sits at the box's spot; from the snap, at the mouth.
+      const center = mouth ?? { x: boxRect.x + boxRect.w / 2, y: boxRect.y + boxRect.h / 2 };
+      const size = scale * (1 - f.gulp);
+      drawHeldCamera(center, boxRect.w * size, boxRect.h * size, boxRect.w);
     }
 
     if (f.streaks > 0) {
@@ -222,8 +345,8 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, reducedMotion =
 
     let sequenceDone = true;
     if (sequenceStart !== null) {
-      const f = effectFrame(now - sequenceStart, reduced);
-      drawAttack(f, now);
+      const f = effectFrame(now - sequenceStart, reduced, chosen?.timing);
+      drawAttack(f, now, dt);
       sequenceDone = f.done;
       if (f.done) {
         sequenceStart = null;
@@ -268,6 +391,8 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, reducedMotion =
       if (sequenceStart !== null) return;
       reduced = reducedMotion();
       if (hand) emitFire(handPoints(), reduced ? 4 : 14, reduced ? 60 : 220);
+      chosen = pickClips();
+      boxColors = readBoxColors();
       sequenceStart = performance.now();
       startLoop();
     },
@@ -281,9 +406,14 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, reducedMotion =
       clearPage();
     },
     // Draw one still frame of the attack at `ms`, for inspecting poses.
-    freezeAt(ms) {
+    // biteIndex picks which bite clip (and a run of the same fox) to show.
+    freezeAt(ms, biteIndex = 0) {
       this.cancel();
-      drawAttack(effectFrame(ms, reducedMotion()), 0);
+      const count = art?.fox?.bite.length || 1;
+      const index = ((Math.trunc(biteIndex) % count) + count) % count; // any integer, even negative
+      chosen = pickClips(() => (index + 0.5) / count);
+      boxColors = readBoxColors();
+      drawAttack(effectFrame(ms, reducedMotion(), chosen?.timing), 0);
     },
     get playing() { return sequenceStart !== null; }
   };

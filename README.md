@@ -7,7 +7,7 @@ Browser hand-tracking camera experience. MediaPipe Hands tracks your hand in the
 1. Choose Start Camera and allow camera access.
 2. Hold a near-OK ring: thumb and index fingertips close but not touching, other three fingers up. Fire lights on your hand and the label reads **Charging**.
 3. After one second it reads **Charged**.
-4. Close the ring (fingertips together). A fox bursts in from the right edge of the page, the camera view shrinks into its open mouth, the jaw snaps shut, and the fox carries it off across the page. After a moment the camera view comes back.
+4. Close the ring (fingertips together). A fox gallops in from the right edge of the page on fire-bursting paws while the camera view shrinks, snaps its jaws shut on it, carries it in its mouth and gulps it down as it runs off across the page. After a moment the camera view comes back.
 
 The camera view is mirrored, like looking in a mirror. Closing before **Charged** wastes the charge; open the ring to start again. Escape cancels a charge or the effect; Stop turns the camera off at any time. With reduced motion enabled in your system settings, the fox fades in and out in place instead of crossing the page.
 
@@ -15,9 +15,11 @@ The camera view is mirrored, like looking in a mirror. Closing before **Charged*
 
 The fox and flame artwork lives in `assets/summon/` and is **not committed**: it was generated locally and is kept out of the repository. In a fresh clone the app still works, but without the fox; the fire falls back to simple drawn flames and the camera view still shrinks, vanishes and returns. To use the artwork, place these files in `assets/summon/`:
 
-- `fox-side-head.webp`, `fox-side-jaw.webp`: side-view fox with a transparent mouth opening, split at the jaw hinge
 - `flame-c.webp`, `flame-d.webp`: flame sprites with brightness-based transparency
-- `layers.json`: `sideHinge` and `sideMouth` (fractions of the fox image) and `sideCloseDeg` (jaw rotation in degrees)
+- `sprites/*.webp`: the full-body fox's run loops and bite clips, each a grid sprite sheet with a transparent background
+- `sprites/sprites.json`: describes the clips. `video` is the source frame size; each clip has `sheet`, `frameW`/`frameH`, `cols`, `count`, `fps`, `sourceCrop` (its position in the source frame) and `fox` (which fox it shows; a summon pairs a run and a bite of the same fox). Bite clips also have `snapFrame` (when the jaws shut), `mouth` (where they meet, as fractions of the source frame) and `gape` (open-jaw height as a fraction of the frame). Every clip also lists, per frame, `mouths` (the mouth point, where the swallowed camera is held) and `feet` (the paws touching down, where the spirit fire bursts), both as fractions of the source frame. Without them the camera stays at the snap point and the paws don't burn.
+
+Each summon picks a random bite clip and a run loop of the same fox.
 
 ## Run locally
 
@@ -51,7 +53,7 @@ npm test
 - `utils/camera.js` and `utils/cameraController.js` handle the camera and the start/stop lifecycle.
 - `utils/handSelection.js` filters out phantom background hands.
 - `utils/summonGesture.js` is the charge/summon state machine.
-- `utils/summonTimeline.js` (timing), `utils/foxPlacement.js` (where the fox goes and how far the camera view shrinks) and `utils/summonEffect.js` (drawing) make up the fire and fox effect; `utils/summonArt.js` loads the artwork.
+- `utils/summonTimeline.js` (timing and clip playback), `utils/foxPlacement.js` (where the fox goes and how far the camera view shrinks) and `utils/summonEffect.js` (drawing; picks the clips) make up the fire and fox effect; `utils/summonArt.js` loads the artwork.
 - `utils/landmarks.js` holds shared hand-landmark math.
 
 ## Privacy

@@ -1,5 +1,5 @@
 import { effectFrame } from './summonTimeline.js';
-import { foxRect } from './foxPlacement.js';
+import { PLACEMENT, foxRect, swallowScale } from './foxPlacement.js';
 import { LANDMARK, palmLength } from './landmarks.js';
 
 // Summon effect renderer.
@@ -155,19 +155,25 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, reducedMotion =
     const shakeX = f.shake * Math.sin(now / 16) * 12;
     const shakeY = f.shake * Math.cos(now / 21) * 6;
 
-    // The camera box shrinks to fit the mouth, vanishes when the jaw shuts,
-    // and grows back at the end.
-    box.dataset.summonScale = String(f.boxScale);
-    box.style.transform = f.boxScale < 1 ? `scale(${f.boxScale})` : '';
+    const viewport = { w: innerWidth, h: innerHeight };
+    const geometry = art && {
+      box: boxRect,
+      viewport,
+      mouth: art.sideMouth,
+      aspect: art.foxHead.width / art.foxHead.height
+    };
+
+    // The camera box shrinks to fit the mouth (smaller when a short window
+    // caps the fox's size), vanishes when the jaw shuts, and grows back.
+    const smallest = geometry ? swallowScale(geometry) : PLACEMENT.swallowScale;
+    const scale = 1 - (1 - smallest) * f.boxShrink;
+    box.dataset.summonScale = String(scale);
+    box.style.transform = scale < 1 ? `scale(${scale})` : '';
     box.style.opacity = f.boxAlpha < 1 ? String(f.boxAlpha) : '';
 
-    if (art && f.foxIn > 0 && f.foxCross < 1 && f.foxAlpha > 0) {
-      const aspect = art.foxHead.width / art.foxHead.height;
+    if (geometry && f.foxIn > 0 && f.foxCross < 1 && f.foxAlpha > 0) {
       const r = foxRect({
-        box: boxRect,
-        viewport: { w: innerWidth, h: innerHeight },
-        mouth: art.sideMouth,
-        aspect,
+        ...geometry,
         foxIn: f.foxIn,
         foxCross: f.foxCross,
         thrust: f.thrust

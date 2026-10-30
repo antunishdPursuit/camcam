@@ -28,13 +28,13 @@
     <p id="status" role="status" aria-live="polite"></p>
 
     <main class="container">
-      <canvas id="output_canvas" width="640" height="480" aria-label="Camera view with hand landmarks"></canvas>
+      <canvas id="output_canvas" width="640" height="480" role="img" aria-label="Camera view with hand landmarks"></canvas>
       <video id="input_video" muted playsinline></video>
       <div class="stage-mark" aria-hidden="true"></div>
       <canvas id="effect_canvas" width="640" height="480" aria-hidden="true"></canvas>
     </main>
 
-    <div id="gesture" aria-live="polite">Gesture: <span>None</span></div>
+    <div id="gesture" aria-live="polite" aria-atomic="true">Gesture: <span>None</span></div>
     <canvas id="summon_overlay" aria-hidden="true"></canvas>
     <p id="proofReadout" hidden></p>
   </body>

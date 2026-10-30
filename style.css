@@ -143,6 +143,14 @@ header p {
   display: none;
 }
 
+/* Both camera-box canvases are flipped together so the view behaves like a
+   mirror. Landmarks stay in camera coordinates; the gesture math doesn't
+   depend on left or right. */
+#output_canvas,
+#effect_canvas {
+  transform: scaleX(-1);
+}
+
 #output_canvas {
   position: absolute;
   inset: 0;

@@ -19,7 +19,7 @@ const stopButton = document.getElementById('stopCameraBtn');
 let hands = null;
 const summon = createSummonGesture();
 const handFilter = createHandFilter();
-const SUMMON_LABELS = { charging: 'Charging', charged: 'Charged', summoned: 'Summoned' };
+const SUMMON_LABELS = { charging: 'Charging', charged: 'Charged', summoned: 'Summoned', locked: 'Cancelled, release your hand' };
 
 // Fire and summon effect (placeholder art for now). ?proof in the URL adds
 // the test button, tuning readout and ?at= freeze frames.
@@ -50,7 +50,13 @@ function onResults(results) {
   if (proofMode) showProofReadout();
 
   if (landmarks) drawHand(ctx, landmarks, canvas.width, canvas.height);
-  gestureDisplay.textContent = SUMMON_LABELS[summon.state] ?? 'None';
+  setText(gestureDisplay, SUMMON_LABELS[summon.state] ?? 'None');
+}
+
+// Only touch the DOM when the text changes: the gesture label is a live
+// region, and rewriting it every frame can make screen readers repeat it.
+function setText(element, text) {
+  if (element.textContent !== text) element.textContent = text;
 }
 
 // Proof-only tuning readout: live ring gap (in palm lengths) against the
@@ -60,9 +66,9 @@ const proofReadout = document.getElementById('proofReadout');
 function showProofReadout() {
   const m = summon.measurement;
   const { chargeMinGap, chargeMaxGap, closeGap } = SUMMON_DEFAULTS;
-  proofReadout.textContent = m
+  setText(proofReadout, m
     ? `Ring gap ${m.gap.toFixed(2)} (charge ${chargeMinGap}–${chargeMaxGap}, close ≤ ${closeGap}) · other fingers ${m.othersRaised ? 'up' : 'down'} · ${summon.state}`
-    : `No hand · ${summon.state}`;
+    : `No hand · ${summon.state}`);
 }
 
 async function loadModel() {
@@ -93,15 +99,20 @@ function resetView() {
   handFilter.reset();
   effect.cancel();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  gestureDisplay.textContent = 'None';
+  setText(gestureDisplay, 'None');
 }
 
 function renderStatus(state, message) {
   statusDisplay.textContent = message;
   statusDisplay.dataset.state = state;
   document.body.dataset.state = state;
+  // Disabling the focused button would drop keyboard focus to the page, so
+  // hand it to the button that just became usable.
+  const focused = document.activeElement;
   startButton.disabled = state === 'starting' || state === 'running';
   stopButton.disabled = !(state === 'starting' || state === 'running');
+  if (focused === startButton && startButton.disabled) stopButton.focus();
+  if (focused === stopButton && stopButton.disabled) startButton.focus();
   if (state !== 'running') resetView();
 }
 

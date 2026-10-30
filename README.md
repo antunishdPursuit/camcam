@@ -7,11 +7,17 @@ Browser hand-tracking camera experience. MediaPipe Hands tracks your hand in the
 1. Choose Start Camera and allow camera access.
 2. Hold a near-OK ring: thumb and index fingertips close but not touching, other three fingers up. Fire lights on your hand and the label reads **Charging**.
 3. After one second it reads **Charged**.
-4. Close the ring (fingertips together). The fox appears, lunges, and its jaws close over the camera view, then the view resets.
+4. Close the ring (fingertips together). A fox bursts in from the right edge of the page, the camera view shrinks into its open mouth, the jaw snaps shut, and the fox carries it off across the page. After a moment the camera view comes back.
 
-Closing before **Charged** wastes the charge; open the ring to start again. Escape cancels a charge or the effect; Stop turns the camera off at any time. With reduced motion enabled in your system settings, the effect is gentler.
+The camera view is mirrored, like looking in a mirror. Closing before **Charged** wastes the charge; open the ring to start again. Escape cancels a charge or the effect; Stop turns the camera off at any time. With reduced motion enabled in your system settings, the fox fades in and out in place instead of crossing the page.
 
-The fox, jaw and flame artwork in `assets/summon/` was generated locally; the effect falls back to simple drawn shapes if it fails to load.
+## Artwork
+
+The fox and flame artwork lives in `assets/summon/` and is **not committed**: it was generated locally and is kept out of the repository. In a fresh clone the app still works, but without the fox; the fire falls back to simple drawn flames and the camera view still shrinks, vanishes and returns. To use the artwork, place these files in `assets/summon/`:
+
+- `fox-side-head.webp`, `fox-side-jaw.webp`: side-view fox with a transparent mouth opening, split at the jaw hinge
+- `flame-c.webp`, `flame-d.webp`: flame sprites with brightness-based transparency
+- `layers.json`: `sideHinge` and `sideMouth` (fractions of the fox image) and `sideCloseDeg` (jaw rotation in degrees)
 
 ## Run locally
 
@@ -23,7 +29,15 @@ npm start
 
 Open http://localhost:5173. Browsers only allow camera access over HTTPS or localhost.
 
-For tuning, http://localhost:5173/?proof adds a Test Summon button and a live readout of the ring gap against the gesture thresholds. Add `&at=1500` to freeze the effect at that millisecond.
+### Developer mode
+
+Add `?proof` to the address (http://localhost:5173/?proof) for tuning tools that stay hidden otherwise:
+
+- **Test Summon** plays the fox attack without making the gesture (works with the camera off).
+- A live readout shows the thumb-to-index ring gap in palm lengths against the charge and close thresholds, whether the other fingers count as raised, and the gesture state.
+- `?proof&at=1500` freezes the attack at that millisecond, to inspect a single frame.
+
+The thresholds live in `SUMMON_DEFAULTS` in `utils/summonGesture.js`; fox size and fit in `PLACEMENT` in `utils/foxPlacement.js`.
 
 ## Test
 
@@ -37,9 +51,9 @@ npm test
 - `utils/camera.js` and `utils/cameraController.js` handle the camera and the start/stop lifecycle.
 - `utils/handSelection.js` filters out phantom background hands.
 - `utils/summonGesture.js` is the charge/summon state machine.
-- `utils/summonTimeline.js` (timing) and `utils/summonEffect.js` (drawing) make up the fire and fox effect.
+- `utils/summonTimeline.js` (timing), `utils/foxPlacement.js` (where the fox goes and how far the camera view shrinks) and `utils/summonEffect.js` (drawing) make up the fire and fox effect; `utils/summonArt.js` loads the artwork.
 - `utils/landmarks.js` holds shared hand-landmark math.
 
 ## Privacy
 
-Camera frames are processed in the browser and are never uploaded or recorded. The page still downloads the MediaPipe model and scripts from jsDelivr (pinned versions), so it needs a network connection on first load.
+Camera frames are processed in the browser and are never uploaded or recorded. The page asks for video only, never the microphone. It downloads the MediaPipe model and scripts from jsDelivr (pinned versions) and the page font from Google Fonts, so it needs a network connection on first load; no other requests are made while the camera runs.

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BOX_SWALLOW_SCALE, effectDuration, effectFrame } from '../utils/summonTimeline.js';
+import { effectDuration, effectFrame } from '../utils/summonTimeline.js';
 
 const sample = (reduced) => {
   const frames = [];
@@ -13,10 +13,10 @@ for (const reduced of [false, true]) {
 
   test(`${label}: the camera box starts and ends full size and visible`, () => {
     const first = effectFrame(0, reduced);
-    assert.equal(first.boxScale, 1);
+    assert.equal(first.boxShrink, 0);
     assert.equal(first.boxAlpha, 1);
     const last = effectFrame(effectDuration(reduced), reduced);
-    assert.equal(last.boxScale, 1);
+    assert.equal(last.boxShrink, 0);
     assert.equal(last.boxAlpha, 1);
     assert.equal(last.done, true);
     assert.equal(effectFrame(effectDuration(reduced) - 1, reduced).done, false);
@@ -25,7 +25,7 @@ for (const reduced of [false, true]) {
   test(`${label}: the box is fully shrunk before the jaw starts to close`, () => {
     const frames = sample(reduced);
     const closing = frames.find((f) => f.jawClose > 0);
-    assert.equal(closing.boxScale, BOX_SWALLOW_SCALE);
+    assert.equal(closing.boxShrink, 1);
   });
 
   test(`${label}: the box only vanishes as the jaw shuts`, () => {

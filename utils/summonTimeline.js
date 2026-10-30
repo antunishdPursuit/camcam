@@ -4,7 +4,6 @@
 // the fox carries on across the page and out the left edge; after a pause the
 // camera box grows back.
 // Phases: enter → lunge → bite → cross → gone → return.
-export const BOX_SWALLOW_SCALE = 0.35; // box size inside the mouth
 
 const FULL = {
   shrinkStart: 250,
@@ -30,7 +29,6 @@ const REDUCED = {
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const progress = (t, start, end) => clamp01((t - start) / (end - start));
-const lerp = (a, b, p) => a + (b - a) * p;
 const easeIn = (p) => p * p * p;
 const easeOut = (p) => 1 - (1 - p) ** 3;
 const easeInOut = (p) => (p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2);
@@ -43,7 +41,8 @@ export function effectDuration(reducedMotion) {
 // foxCross: 0 = at the attack position, 1 = off the left edge.
 // thrust: extra forward push during the lunge (0..1).
 // jawClose: 0 = open, 1 = shut.
-// boxScale / boxAlpha: the camera box's size and visibility.
+// boxShrink: 0 = camera box at full size, 1 = shrunk to fit the mouth
+// (the renderer turns this into a scale). boxAlpha: the box's visibility.
 export function effectFrame(t, reducedMotion = false) {
   return reducedMotion ? reducedFrame(t) : fullFrame(t);
 }
@@ -51,12 +50,12 @@ export function effectFrame(t, reducedMotion = false) {
 function swallowAndReturn(t, shrinkStart, shrinkEnd, hideStart, hideEnd, returnStart, end) {
   if (t < returnStart) {
     return {
-      boxScale: lerp(1, BOX_SWALLOW_SCALE, easeInOut(progress(t, shrinkStart, shrinkEnd))),
+      boxShrink: easeInOut(progress(t, shrinkStart, shrinkEnd)),
       boxAlpha: 1 - progress(t, hideStart, hideEnd)
     };
   }
   const p = easeOut(progress(t, returnStart, end));
-  return { boxScale: lerp(BOX_SWALLOW_SCALE, 1, p), boxAlpha: p };
+  return { boxShrink: 1 - p, boxAlpha: p };
 }
 
 function fullFrame(t) {

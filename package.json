@@ -1,0 +1,14 @@
+{
+  "name": "camcam",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser hand-tracking camera experiments. Video stays in the page.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node scripts/serve.js",
+    "test": "node --test"
+  }
+}

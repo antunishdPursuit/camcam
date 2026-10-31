@@ -1,7 +1,7 @@
 import { drawHand, drawVideoFrame } from './utils/drawUtils.js';
 import { openCamera } from './utils/camera.js';
 import { createCameraController, namedError } from './utils/cameraController.js';
-import { createSummonGesture, SUMMON_DEFAULTS } from './utils/summonGesture.js';
+import { createSummonGesture, measureHand, SUMMON_DEFAULTS } from './utils/summonGesture.js';
 import { createHandFilter } from './utils/handSelection.js';
 import { createSummonEffect } from './utils/summonEffect.js';
 import { loadSummonArt } from './utils/summonArt.js';
@@ -39,16 +39,20 @@ function onResults(results) {
   if (controller.state !== 'running') return;
   drawVideoFrame(ctx, results.image, canvas);
 
-  const landmarks = handFilter.update(results.multiHandLandmarks, canvas.width, canvas.height);
+  const now = performance.now();
+  // MediaPipe's handedness score (left/right confidence) doubles as a filter
+  // for shaky phantom detections.
+  const scores = results.multiHandedness?.map((h) => h?.score ?? 1);
+  const landmarks = handFilter.update(results.multiHandLandmarks, canvas.width, canvas.height, now, scores);
   // While the fox sequence plays, the gesture holds at 'summoned' and no new
   // charge starts, so a summon can't be swallowed and fire can't cover the fox.
   if (!effect.playing) {
-    const event = summon.update(landmarks, performance.now(), canvas.width, canvas.height);
+    const event = summon.update(landmarks, now, canvas.width, canvas.height);
     if (event === 'summon') effect.play();
   }
   const lit = summon.state === 'charging' || summon.state === 'charged';
   effect.setHand(landmarks, lit ? Math.max(0.1, summon.chargeProgress) : 0);
-  if (proofMode) showProofReadout();
+  if (proofMode) showProofReadout(landmarks);
 
   if (landmarks) drawHand(ctx, landmarks, canvas.width, canvas.height);
   setText(gestureDisplay, SUMMON_LABELS[summon.state] ?? 'None');
@@ -64,8 +68,9 @@ function setText(element, text) {
 // charge and close thresholds, so a miss can be traced to the pose.
 const proofReadout = document.getElementById('proofReadout');
 
-function showProofReadout() {
-  const m = summon.measurement;
+// Measured here rather than read from the gesture, which pauses during the effect.
+function showProofReadout(landmarks) {
+  const m = landmarks ? measureHand(landmarks, canvas.width, canvas.height) : null;
   const { chargeMinGap, chargeMaxGap, closeGap } = SUMMON_DEFAULTS;
   setText(proofReadout, m
     ? `Ring gap ${m.gap.toFixed(2)} (charge ${chargeMinGap}–${chargeMaxGap}, close ≤ ${closeGap}) · other fingers ${m.othersRaised ? 'up' : 'down'} · ${summon.state}`

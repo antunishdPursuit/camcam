@@ -136,8 +136,8 @@ function reducedFrame(t, bite) {
 
 // The eye that opens in the closed ring when the summon fires. The attack
 // timeline above starts EYE_MS later; the eye fades as the camera shrinks.
-export const EYE_MS = 900;
-const EYE_OPEN_MS = 280;
+export const EYE_MS = 450;   // short, so the close reads as an instant reaction
+const EYE_OPEN_MS = 250;
 const EYE_FADE_MS = 500;
 
 // ms: time since the summon. open: 0 = lids shut, 1 = wide open. alpha: its
@@ -149,7 +149,7 @@ export function eyeState(ms, reducedMotion = false) {
   return {
     open: easeOut(progress(ms, 0, EYE_OPEN_MS)),
     alpha: fade,
-    slit: 1 - 0.5 * easeInOutSine(progress(ms, EYE_OPEN_MS + 150, EYE_MS - 100))
+    slit: 1 - 0.5 * easeInOutSine(progress(ms, EYE_OPEN_MS, EYE_MS))
   };
 }
 

@@ -124,7 +124,7 @@ test('a wide-open hand does not charge', () => {
 test('losing the hand for longer than the grace while charging or charged fizzles', () => {
   for (const lead of [10, FULL_CHARGE]) {
     const g = createSummonGesture();
-    const events = run(g, [...repeat(OPEN, lead), ...repeat(null, 12), ...repeat(CLOSED, 5)]);
+    const events = run(g, [...repeat(OPEN, lead), ...repeat(null, 20), ...repeat(CLOSED, 5)]);
     assert.equal(events.at(-1), 'fizzle');
     assert.equal(g.state, 'idle');
   }
@@ -175,8 +175,28 @@ test('a short tracking dropout keeps the charge; a long one fizzles', () => {
   const events = run(g, [...repeat(OPEN, FULL_CHARGE), null, null, null, ...repeat(CLOSED, 2)]);
   assert.deepEqual(events, ['charge', 'charged', 'summon']);
   const g2 = createSummonGesture();
-  const events2 = run(g2, [...repeat(OPEN, 10), ...repeat(null, 12)]);
+  const events2 = run(g2, [...repeat(OPEN, 10), ...repeat(null, 20)]);
   assert.deepEqual(events2, ['charge', 'fizzle']);
+});
+
+test('a dropout of about 400 ms (the ring self-occluding) keeps the charge', () => {
+  const g = createSummonGesture();
+  const events = run(g, [...repeat(OPEN, 10), ...repeat(null, 12), ...repeat(OPEN, 15), ...repeat(CLOSED, 2)]);
+  assert.deepEqual(events, ['charge', 'charged', 'summon']);
+});
+
+test('closing near the end of the charge holds and fires when it completes', () => {
+  const g = createSummonGesture();
+  // 24 frames ≈ 0.79 s of charge, then the ring closes and stays closed.
+  const events = run(g, [...repeat(OPEN, 24), ...repeat(CLOSED, 10)]);
+  assert.deepEqual(events, ['charge', 'summon']);
+  assert.equal(g.state, 'summoned');
+});
+
+test('closing near the end, then reopening before it completes, keeps charging', () => {
+  const g = createSummonGesture();
+  const events = run(g, [...repeat(OPEN, 24), ...repeat(CLOSED, 3), ...repeat(OPEN, 10)]);
+  assert.deepEqual(events, ['charge', 'charged']);
 });
 
 test('the charge timer keeps running through a dropout', () => {
@@ -192,4 +212,14 @@ test('after an Escape lock, holding the ring stays off until the pose is release
   assert.deepEqual(run(g, repeat(OPEN, 40), 2000), []);
   assert.equal(g.state, 'locked');
   assert.deepEqual(run(g, [hand({ gap: 1.2 }), ...repeat(OPEN, 2)], 4000), ['charge']);
+});
+
+test('after an Escape lock, a closed ring stays locked until the pose is released', () => {
+  const g = createSummonGesture();
+  run(g, [...repeat(OPEN, FULL_CHARGE), ...repeat(CLOSED, 2)]);
+  assert.equal(g.state, 'summoned');
+  g.reset({ lock: true });
+  assert.deepEqual(run(g, [...repeat(CLOSED, 10), ...repeat(hand({ gap: 0.12 }), 3), ...repeat(OPEN, 40)], 2000), []);
+  assert.equal(g.state, 'locked');
+  assert.deepEqual(run(g, [hand({ gap: 1.2 }), ...repeat(OPEN, 2)], 5000), ['charge']);
 });

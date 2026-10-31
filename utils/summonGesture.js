@@ -14,8 +14,9 @@ export const SUMMON_DEFAULTS = {
   rearmGap: 0.15,       // after a summon, reopen past this to re-arm
   chargeHoldMs: 1000,   // hold the open ring this long to go from charging to charged
   closeFrames: 2,       // consecutive closed frames needed to fire
+  earlyCloseFraction: 0.7, // a close this far into the charge waits for it instead of wasting it
   breakFrames: 3,       // consecutive broken-pose frames before the fire goes out
-  lostGraceMs: 300      // tracking can drop out this long without losing the charge
+  lostGraceMs: 500      // tracking can drop out this long without losing the charge
 };
 
 const RAISED_FINGERS = [[10, 12], [14, 16], [18, 20]]; // [PIP, TIP] of middle, ring, pinky
@@ -33,7 +34,7 @@ export function measureHand(landmarks, width = 1, height = 1) {
 
 // States: idle → charging (fire lit, 1 s) → charged → summoned (held until
 // the ring reopens or the hand is lost). 'locked' follows Escape until the
-// ring pose is released. Events: 'charge', 'charged', 'fizzle', 'summon'.
+// ring pose (open or closed) is released. Events: 'charge', 'charged', 'fizzle', 'summon'.
 export function createSummonGesture(options = {}) {
   const t = { ...SUMMON_DEFAULTS, ...options };
   let state = 'idle';
@@ -52,6 +53,13 @@ export function createSummonGesture(options = {}) {
     closedCount = 0;
     brokenCount = 0;
     lostSince = null;
+  }
+
+  function summonNow() {
+    state = 'summoned';
+    chargeStart = null;
+    closedCount = 0;
+    return 'summon';
   }
 
   function fizzle() {
@@ -82,16 +90,16 @@ export function createSummonGesture(options = {}) {
     }
 
     const openRing = hand.othersRaised && hand.gap >= t.chargeMinGap && hand.gap <= t.chargeMaxGap;
-
-    // After Escape, stay off until the ring pose is released, so holding it
-    // doesn't immediately relight the fire.
-    if (state === 'locked') {
-      if (!openRing) toIdle();
-      return null;
-    }
     const closed = hand.othersRaised && hand.gap <= t.closeGap;
     // Between the close and charge thresholds the ring is wobbling or mid-close.
     const midClose = hand.othersRaised && hand.gap > t.closeGap && hand.gap < t.chargeMinGap;
+
+    // After Escape, stay off until the ring pose is released, so holding it
+    // (or closing it, then reopening) doesn't immediately relight the fire.
+    if (state === 'locked') {
+      if (!openRing && !closed && !midClose) toIdle();
+      return null;
+    }
 
     if (state === 'idle') {
       if (!openRing) return null;
@@ -109,13 +117,17 @@ export function createSummonGesture(options = {}) {
     brokenCount = 0;
 
     if (state === 'charging') {
-      // Closing before the charge completes wastes it; reopen to start again.
+      const held = now - chargeStart;
       if (closed) {
         closedCount++;
-        return closedCount >= t.closeFrames ? fizzle() : null;
+        if (closedCount < t.closeFrames) return null;
+        if (held >= t.chargeHoldMs) return summonNow();
+        // Closing well before the charge completes wastes it (reopen to start
+        // again); closing near the end holds and fires once the charge is full.
+        return held < t.earlyCloseFraction * t.chargeHoldMs ? fizzle() : null;
       }
       closedCount = 0;
-      if (now - chargeStart >= t.chargeHoldMs) {
+      if (held >= t.chargeHoldMs) {
         state = 'charged';
         return 'charged';
       }
@@ -125,13 +137,7 @@ export function createSummonGesture(options = {}) {
     // charged
     if (closed) {
       closedCount++;
-      if (closedCount >= t.closeFrames) {
-        state = 'summoned';
-        chargeStart = null;
-        closedCount = 0;
-        return 'summon';
-      }
-      return null;
+      return closedCount >= t.closeFrames ? summonNow() : null;
     }
     closedCount = 0;
     return null;

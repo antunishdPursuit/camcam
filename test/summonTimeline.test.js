@@ -160,3 +160,8 @@ test('reduced motion: the eye fades in already open with a fixed pupil', () => {
   assert.equal(eyeState(0, true).alpha, 0);
   assert.equal(eyeState(EYE_MS + 500, true).alpha, 0);
 });
+
+test('the camera starts shrinking within 0.7 s of the close', () => {
+  assert.ok(EYE_MS <= 500);
+  assert.ok(effectFrame(700 - EYE_MS, false).boxShrink > 0);
+});

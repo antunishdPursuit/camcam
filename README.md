@@ -9,11 +9,11 @@ Browser hand-tracking camera experience. MediaPipe Hands tracks your hand in the
 3. After one second it reads **Charged**.
 4. Close the ring (fingertips together). A fox eye opens in the ring, and a moment later a fox gallops in from the right edge of the page on fire-bursting paws while the camera view shrinks and runs; the fox catches it on the move and the camera view is pulled into its mouth as its jaws close; then it runs off across the page with its mouth shut. After a moment the camera view comes back.
 
-The camera view is mirrored, like looking in a mirror. Closing before **Charged** wastes the charge; open the ring to start again. Escape cancels a charge or the effect; Stop turns the camera off at any time. With reduced motion enabled in your system settings, the fox fades in and out in place instead of crossing the page.
+The camera view is mirrored, like looking in a mirror. Closing well before **Charged** wastes the charge; open the ring to start again. Closing in the last stretch of the charge is held, and the fox comes as soon as the charge completes. Brief tracking dropouts (up to about half a second) keep the charge. Escape cancels a charge or the effect, and nothing relights until you drop the ring pose; Stop turns the camera off at any time. With reduced motion enabled in your system settings, the fox fades in and out in place instead of crossing the page.
 
 ## Artwork
 
-The fox and flame artwork lives in `assets/summon/` and is **not committed**: it was generated locally and is kept out of the repository. In a fresh clone the app still works, but without the fox; the fire falls back to simple drawn flames and the camera view still shrinks, vanishes and returns. To use the artwork, place these files in `assets/summon/`:
+The fox and flame artwork lives in `assets/summon/` and is **not committed**: it was generated locally and is kept out of the repository. In a fresh clone the app still works, but without the fox; the fire falls back to simple drawn flames and the camera view still shrinks, vanishes and returns. To use the artwork, place these files in `assets/summon/` (`sprites/sprites.json` must be there for anything in the folder to load, the flames included):
 
 - `flame-c.webp`, `flame-d.webp`: flame sprites with brightness-based transparency
 - `sprites/*.webp`: the full-body fox's run loops and bite clips, each a grid sprite sheet with a transparent background
@@ -39,7 +39,7 @@ Add `?proof` to the address (http://localhost:5173/?proof) for tuning tools that
 - A live readout shows the thumb-to-index ring gap in palm lengths against the charge and close thresholds, whether the other fingers count as raised, and the gesture state.
 - `?proof&at=1500` freezes the attack at that millisecond, to inspect a single frame.
 
-The thresholds live in `SUMMON_DEFAULTS` in `utils/summonGesture.js`; fox size and fit in `PLACEMENT` in `utils/foxPlacement.js`.
+The thresholds live in `SUMMON_DEFAULTS` in `utils/summonGesture.js` and `HAND_FILTER_DEFAULTS` in `utils/handSelection.js`; fox size and fit in `PLACEMENT` in `utils/foxPlacement.js`.
 
 ## Test
 

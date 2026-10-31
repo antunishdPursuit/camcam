@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="halo" cx="256" cy="256" r="250" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff5a1f" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#c2261b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="iris" cx="256" cy="256" r="190" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff3b8"/>
+      <stop offset="0.35" stop-color="#ffc23d"/>
+      <stop offset="0.75" stop-color="#ff7a1a"/>
+      <stop offset="1" stop-color="#a8201a"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="#140a0b"/>
+  <circle cx="256" cy="256" r="250" fill="url(#halo)"/>
+  <path d="M40 256 Q256 36 472 256 Q256 476 40 256 Z" fill="url(#iris)" stroke="#2a0805" stroke-width="20" stroke-linejoin="round"/>
+  <ellipse cx="256" cy="256" rx="34" ry="104" fill="#120404"/>
+</svg>

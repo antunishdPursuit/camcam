@@ -25,7 +25,7 @@ Only those files are loaded. `npm run check-art` lists which files in `assets/su
 
 ## Live site
 
-https://antunishdpursuit.github.io/camcam/ is deployed from `main` by `.github/workflows/pages.yml` (tests first, then deploy). One-time setup: in the repository's Settings → Pages, set Source to GitHub Actions.
+https://antunishdpursuit.github.io/camcam/ is served by GitHub Pages straight from `main` (Settings → Pages → Deploy from a branch, `main`, `/ (root)`). There is no build step, so run `npm test` before merging.
 
 ## Run locally
 

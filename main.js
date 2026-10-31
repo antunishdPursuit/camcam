@@ -109,7 +109,7 @@ async function initModel() {
     await hands.initialize();
   } catch (error) {
     // A failed load leaves this instance unusable; build a fresh one on retry.
-    hands?.close?.();
+    Promise.resolve(hands?.close?.()).catch(() => {});
     hands = null;
     throw namedError('ModelLoadError', error);
   }
@@ -171,7 +171,11 @@ if (proofMode) {
   const testButton = document.getElementById('testSummonBtn');
   testButton.hidden = false;
   proofReadout.hidden = false;
-  testButton.addEventListener('click', () => effect.play());
+  // Drop any charge first, so finger fire doesn't keep burning over the fox.
+  testButton.addEventListener('click', () => {
+    summon.reset();
+    effect.play();
+  });
 }
 
 renderStatus('idle', 'Choose Start Camera to begin. Video stays in this browser and is never uploaded.');

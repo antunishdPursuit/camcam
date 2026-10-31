@@ -232,3 +232,13 @@ test('after an Escape lock, a closed ring stays locked until the pose is release
   assert.equal(g.state, 'locked');
   assert.deepEqual(run(g, [hand({ gap: 1.2 }), ...repeat(OPEN, 2)], 5000), ['charge']);
 });
+
+test('closed frames split by a broken pose or a dropout do not fire', () => {
+  const WIDE = hand({ gap: 1.2 });
+  const broken = createSummonGesture();
+  assert.deepEqual(run(broken, [...repeat(OPEN, FULL_CHARGE), CLOSED, WIDE, CLOSED]), ['charge', 'charged']);
+  assert.equal(broken.state, 'charged');
+  const dropped = createSummonGesture();
+  assert.deepEqual(run(dropped, [...repeat(OPEN, FULL_CHARGE), CLOSED, null, CLOSED]), ['charge', 'charged']);
+  assert.equal(dropped.state, 'charged');
+});

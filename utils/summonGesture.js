@@ -81,6 +81,8 @@ export function createSummonGesture(options = {}) {
         return null;
       }
       if (isLit()) {
+        // The close must be seen on consecutive frames, so a gap restarts it.
+        closedCount = 0;
         lostSince ??= now;
         return now - lostSince >= t.lostGraceMs ? fizzle() : null;
       }
@@ -115,6 +117,7 @@ export function createSummonGesture(options = {}) {
     // Charging or charged: a pose break must last a few frames to count, so a
     // single bad landmark frame doesn't put the fire out.
     if (!openRing && !closed && !midClose) {
+      closedCount = 0;
       brokenCount++;
       return brokenCount >= t.breakFrames ? fizzle() : null;
     }

@@ -59,8 +59,10 @@ export function createHandFilter(options = {}) {
   let missingSince = null; // when the confirmed hand was first missed
   let challenger = null;   // { wrist, palm, frames } of another hand bidding to take over
   let bystanders = [];     // { wrist, palm, missed } of other hands seen beside the tracked one
+  let switched = false;    // the last update handed over to a different hand
 
   function reset() {
+    switched = false;
     seenFrames = 0;
     tracked = null;
     missingSince = null;
@@ -118,12 +120,17 @@ export function createHandFilter(options = {}) {
   // scores: MediaPipe's per-hand handedness scores, in the same order as hands.
   function update(hands, width, height, now = performance.now(), scores = null) {
     if (missingSince !== null && now - missingSince > t.dropoutMs) reset();
+    switched = false;
     const candidates = (hands ?? []).filter((_, i) => (scores?.[i] ?? 1) >= t.minScore);
     const confirmed = seenFrames >= t.confirmFrames;
     const near = tracked ? pickNearestHand(candidates, width, height, t.minPalmFraction, tracked, t.maxJumpPalms) : null;
     let hand = near;
     if (confirmed) {
-      hand = takeover(near ? candidates : skipBystanders(candidates, width, height), near, width, height) ?? near;
+      const taker = takeover(near ? candidates : skipBystanders(candidates, width, height), near, width, height);
+      // Beating a hand still in view means a different hand; one turning up
+      // while the tracked hand is missing is usually that hand, moved.
+      switched = Boolean(taker && near);
+      hand = taker ?? near;
     } else if (!near) {
       // Nothing confirmed to hold on to: (re)start on the largest hand, the
       // participant's being nearest the lens.
@@ -146,5 +153,9 @@ export function createHandFilter(options = {}) {
     return seenFrames >= t.confirmFrames ? hand : null;
   }
 
-  return { update, reset };
+  return {
+    update,
+    reset,
+    get switched() { return switched; }
+  };
 }

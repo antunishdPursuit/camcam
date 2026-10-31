@@ -48,6 +48,9 @@ function onResults(results) {
   const landmarks = handFilter.update(results.multiHandLandmarks, canvas.width, canvas.height, now, scores);
   // While the fox sequence plays, the gesture holds at 'summoned' and no new
   // charge starts, so a summon can't be swallowed and fire can't cover the fox.
+  // A different hand taking over starts from scratch rather than inheriting
+  // the previous hand's charge.
+  if (handFilter.switched) summon.reset();
   if (!effect.playing) {
     const event = summon.update(landmarks, now, canvas.width, canvas.height);
     if (event === 'summon') effect.play();

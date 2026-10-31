@@ -181,3 +181,30 @@ test('bystanders are recorded from the first frames, before confirmation', () =>
   for (let t = 99; t <= 300; t += 33) assert.equal(filter.update([ghost], W, H, t), null);
   assert.equal(filter.update([ghost, real], W, H, 333), real);
 });
+
+test('switched is set only on the frame a bigger hand in view takes over', () => {
+  const filter = createHandFilter({ confirmFrames: 3 });
+  const small = hand(0.1, 0.8);
+  const big = hand(0.2, 0.3);
+  for (let t = 0; t < 99; t += 33) filter.update([small], W, H, t);
+  assert.equal(filter.switched, false);
+  filter.update([small, big], W, H, 99);
+  filter.update([small, big], W, H, 132);
+  assert.equal(filter.switched, false);
+  assert.equal(filter.update([small, big], W, H, 165), big);
+  assert.equal(filter.switched, true);
+  filter.update([small, big], W, H, 198);
+  assert.equal(filter.switched, false);
+});
+
+test('the tracked hand turning up elsewhere after a dropout is not a switch', () => {
+  const filter = createHandFilter({ confirmFrames: 3, dropoutMs: 500 });
+  for (let t = 0; t < 99; t += 33) filter.update([hand(0.15, 0.3)], W, H, t);
+  filter.update([], W, H, 99);
+  let picked = null;
+  for (let t = 132; t < 231; t += 33) {
+    picked = filter.update([hand(0.15, 0.8)], W, H, t);
+    assert.equal(filter.switched, false);
+  }
+  assert.ok(picked, 'picked up again');
+});

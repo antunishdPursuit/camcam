@@ -30,6 +30,8 @@ const effect = createSummonEffect({
   boxCanvas: document.getElementById('effect_canvas'),
   pageCanvas: document.getElementById('summon_overlay'),
   camera: canvas,
+  // ?attack=snatch switches the fox from chasing the camera to lunging at it.
+  attack: new URLSearchParams(location.search).get('attack') === 'snatch' ? 'snatch' : 'chase',
   box: document.querySelector('.container'),
   reducedMotion: () => reducedMotionQuery.matches,
   art: summonArt

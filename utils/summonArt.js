@@ -23,9 +23,11 @@ async function loadFox() {
   const response = await fetch(BASE + 'sprites/sprites.json');
   if (!response.ok) throw new Error(`sprites.json: HTTP ${response.status}`);
   const manifest = await response.json();
-  const [run, bite] = await Promise.all([loadClips(manifest.run), loadClips(manifest.bite)]);
+  const [run, bite, carry] = await Promise.all([
+    loadClips(manifest.run), loadClips(manifest.bite), loadClips(manifest.carry ?? [])
+  ]);
   if (!run.length || !bite.length) throw new Error('sprites.json needs run and bite clips');
-  return { video: manifest.video, run, bite };
+  return { video: manifest.video, run, bite, carry };
 }
 
 export async function loadSummonArt() {

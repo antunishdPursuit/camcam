@@ -1,5 +1,5 @@
 import { biteTiming, clipFrame, effectFrame } from './summonTimeline.js';
-import { PLACEMENT, foxRect, swallowScale } from './foxPlacement.js';
+import { PLACEMENT, fleeDistance, foxRectAt, foxSize, jawsX, swallowScale } from './foxPlacement.js';
 import { LANDMARK, palmLength } from './landmarks.js';
 
 // Summon effect renderer.
@@ -16,7 +16,8 @@ const RING_POINTS = [2, 3, 4, 6, 7, 8]; // thumb and index joints around the rin
 // `art` is an optional promise of { flames, fox } from loadSummonArt(), which
 // never rejects; either part may be null. Until it resolves, or for a missing
 // part, fire falls back to drawn particles and the attack shows only the box.
-export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reducedMotion = () => false, art: artPromise }) {
+// attack: 'chase' (the camera flees) or 'snatch' (the fox lunges straight in).
+export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, attack = 'chase', reducedMotion = () => false, art: artPromise }) {
   const ctx = boxCanvas.getContext('2d');
   const W = boxCanvas.width;
   const H = boxCanvas.height;
@@ -162,7 +163,11 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
     const runs = fox.run.filter((clip) => clip.fox === bite.fox);
     const pool = runs.length ? runs : fox.run;
     const run = pool[Math.floor(random() * pool.length)];
-    return { run, bite, timing: biteTiming(bite) };
+    // Running off after the bite: a closed-mouth run of the same fox if the
+    // manifest has one, otherwise the ordinary run.
+    const carries = (fox.carry ?? []).filter((clip) => clip.fox === bite.fox);
+    const carry = carries.length ? carries[Math.floor(random() * carries.length)] : run;
+    return { run, bite, carry, timing: biteTiming(bite) };
   }
 
   // Draw one frame of a clip. Clips are positioned in the coordinates of the
@@ -238,10 +243,11 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
   // spot while it shrinks, then clamped in the jaws (following the mouth frame
   // by frame) until it is gulped down. Mirrored like the box itself, with the
   // box's own fire canvas on top so the summon burst doesn't vanish.
-  function drawHeldCamera(center, w, h, fullW) {
+  function drawHeldCamera(center, w, h, fullW, tilt = 0) {
     boxColors ??= readBoxColors();
     page.save();
     page.translate(center.x, center.y);
+    page.rotate(tilt);
     page.fillStyle = boxColors.stage;
     page.fillRect(-w / 2, -h / 2, w, h);
     page.save();
@@ -268,57 +274,71 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
     const shakeY = f.shake * Math.cos(now / 21) * 6;
 
     const viewport = { w: innerWidth, h: innerHeight };
-    const geometry = chosen && {
-      box: boxRect,
-      viewport,
-      frame: art.fox.video,
-      mouth: chosen.bite.mouth,
-      gape: chosen.bite.gape
-    };
 
-    // The camera box shrinks to fit between the jaws (smaller when a short
-    // window caps the fox's size). While the page layer draws the camera, the
-    // box in the layout is hidden; it grows back in place at the end.
-    const smallest = geometry ? swallowScale(geometry) : PLACEMENT.swallowScale;
+    // The camera shrinks to fit between the jaws (smaller when a short window
+    // caps the fox's size). While the page layer draws it, the box in the
+    // layout is hidden; it grows back in place at the end.
+    const smallest = chosen
+      ? swallowScale({ box: boxRect, viewport, gape: chosen.bite.gape })
+      : PLACEMENT.swallowScale;
     const scale = 1 - (1 - smallest) * f.boxShrink;
     box.dataset.summonScale = String(scale);
     box.style.transform = scale < 1 ? `scale(${scale})` : '';
     box.style.opacity = f.boxAlpha < 1 ? String(f.boxAlpha) : '';
 
+    // The camera runs left in a straight line (chase) or holds its spot
+    // (snatch); either way it is caught at mouth height, so it never drops.
+    const home = { x: boxRect.x + boxRect.w / 2, y: boxRect.y + boxRect.h / 2 };
+    const fleeDist = fleeDistance({ box: boxRect, scale: smallest });
+    const camX = home.x - fleeDist * f.camTravel;
+    const caught = { x: home.x - fleeDist * f.caughtTravel, y: home.y };
+
     let mouth = null;
-    if (geometry && f.foxIn > 0 && f.foxCross < 1 && f.foxAlpha > 0) {
-      const r = foxRect({ ...geometry, foxIn: f.foxIn, foxCross: f.foxCross });
-      r.x += shakeX;
-      r.y += shakeY;
-      const clip = f.sprite === 'bite' ? chosen.bite : chosen.run;
-      const index = clipFrame(clip, f.spriteMs, f.sprite === 'run');
+    if (chosen && f.foxGap < 1 && f.foxCross < 1 && f.foxAlpha > 0) {
+      // The fox is placed by its jaws: trailing the camera before the snap,
+      // carrying on from the catch point after it. The anchor is the bite
+      // clip's mouth at the snap, so the jaws meet the camera exactly then.
+      const size = foxSize({ box: boxRect, viewport, frame: art.fox.video });
+      const anchorMouth = chosen.bite.mouths?.[chosen.bite.snapFrame] ?? chosen.bite.mouth;
+      const x = jawsX({ camX, caughtX: caught.x, foxGap: f.foxGap, foxCross: f.foxCross, viewport, size, mouth: anchorMouth });
+      const r = foxRectAt({ anchor: { x: x + shakeX, y: caught.y + shakeY }, size, mouth: anchorMouth });
+      const clip = chosen[f.sprite] ?? chosen.run;
+      const looping = f.sprite !== 'bite';
+      const index = clipFrame(clip, f.spriteMs, looping);
       page.save();
       page.globalAlpha = f.foxAlpha;
       drawSprite(clip, index, r, 0, 0);
       page.restore();
-      if (!reduced) emitPawFire(clip, index, r, f.sprite === 'run');
-
-      if (f.boxHeld) {
-        // Follow the mouth, measured relative to where it was at the snap so
-        // the camera doesn't jump when the jaws close on it.
-        const atBite = foxRect({ ...geometry, foxIn: 1, foxCross: 0 });
-        const snapMouth = mouthAt(chosen.bite, chosen.bite.snapFrame, atBite);
-        const current = mouthAt(clip, index, r);
-        mouth = { x: boxRect.x + boxRect.w / 2 + current.x - snapMouth.x, y: boxRect.y + boxRect.h / 2 + current.y - snapMouth.y };
-      }
+      if (!reduced) emitPawFire(clip, index, r, looping);
+      if (f.boxHeld) mouth = mouthAt(clip, index, r);
     }
     drawPawFire(dt);
 
-    if (f.boxOnPage && f.gulp < 1 && (mouth || !f.boxHeld)) {
-      // Before the snap it sits at the box's spot; from the snap, at the mouth.
-      const center = mouth ?? { x: boxRect.x + boxRect.w / 2, y: boxRect.y + boxRect.h / 2 };
+    if (f.boxOnPage && f.gulp < 1) {
+      // Fleeing: a light running bob, no tilt. Snatch: a shiver in place.
+      // As the jaws close it is pulled into the fox's actual mouth and is gone
+      // exactly at the snap.
       const size = scale * (1 - f.gulp);
-      drawHeldCamera(center, boxRect.w * size, boxRect.h * size, boxRect.w);
+      let center = { x: camX, y: home.y };
+      let tilt = 0;
+      if (!reduced && f.camTravel > 0 && f.camTravel < 1) {
+        center.y -= Math.abs(Math.sin(now / 85)) * boxRect.h * size * 0.08;
+      }
+      if (!reduced && f.tremble) {
+        center.x += Math.sin(now / 23) * 2.5;
+        center.y += Math.cos(now / 29) * 2;
+        tilt = Math.sin(now / 31) * 0.03;
+      }
+      if (f.boxHeld && mouth) {
+        const pull = f.gulp * f.gulp * (3 - 2 * f.gulp);
+        center = { x: center.x + (mouth.x - center.x) * pull, y: center.y + (mouth.y - center.y) * pull };
+      }
+      drawHeldCamera(center, boxRect.w * size, boxRect.h * size, boxRect.w, tilt);
     }
 
     if (f.streaks > 0) {
-      const cx = boxRect.x + boxRect.w / 2;
-      const cy = boxRect.y + boxRect.h / 2;
+      const cx = caught.x;
+      const cy = caught.y;
       const reach = Math.hypot(innerWidth, innerHeight);
       page.save();
       page.globalAlpha = f.streaks;
@@ -345,7 +365,7 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
 
     let sequenceDone = true;
     if (sequenceStart !== null) {
-      const f = effectFrame(now - sequenceStart, reduced, chosen?.timing);
+      const f = effectFrame(now - sequenceStart, reduced, chosen?.timing, attack);
       drawAttack(f, now, dt);
       sequenceDone = f.done;
       if (f.done) {
@@ -413,7 +433,7 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
       const index = ((Math.trunc(biteIndex) % count) + count) % count; // any integer, even negative
       chosen = pickClips(() => (index + 0.5) / count);
       boxColors = readBoxColors();
-      drawAttack(effectFrame(ms, reducedMotion(), chosen?.timing), 0);
+      drawAttack(effectFrame(ms, reducedMotion(), chosen?.timing, attack), 0);
     },
     get playing() { return sequenceStart !== null; }
   };

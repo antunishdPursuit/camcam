@@ -7,7 +7,7 @@ Browser hand-tracking camera experience. MediaPipe Hands tracks your hand in the
 1. Choose Start Camera and allow camera access.
 2. Hold a near-OK ring: thumb and index fingertips close but not touching, other three fingers up. Fire lights on your hand and the label reads **Charging**.
 3. After one second it reads **Charged**.
-4. Close the ring (fingertips together). A fox gallops in from the right edge of the page on fire-bursting paws while the camera view shrinks, snaps its jaws shut on it, carries it in its mouth and gulps it down as it runs off across the page. After a moment the camera view comes back.
+4. Close the ring (fingertips together). A fox gallops in from the right edge of the page on fire-bursting paws while the camera view shrinks and runs; the fox catches it on the move and the camera view is pulled into its mouth as its jaws close; then it runs off across the page with its mouth shut. After a moment the camera view comes back.
 
 The camera view is mirrored, like looking in a mirror. Closing before **Charged** wastes the charge; open the ring to start again. Escape cancels a charge or the effect; Stop turns the camera off at any time. With reduced motion enabled in your system settings, the fox fades in and out in place instead of crossing the page.
 
@@ -19,7 +19,7 @@ The fox and flame artwork lives in `assets/summon/` and is **not committed**: it
 - `sprites/*.webp`: the full-body fox's run loops and bite clips, each a grid sprite sheet with a transparent background
 - `sprites/sprites.json`: describes the clips. `video` is the source frame size; each clip has `sheet`, `frameW`/`frameH`, `cols`, `count`, `fps`, `sourceCrop` (its position in the source frame) and `fox` (which fox it shows; a summon pairs a run and a bite of the same fox). Bite clips also have `snapFrame` (when the jaws shut), `mouth` (where they meet, as fractions of the source frame) and `gape` (open-jaw height as a fraction of the frame). Every clip also lists, per frame, `mouths` (the mouth point, where the swallowed camera is held) and `feet` (the paws touching down, where the spirit fire bursts), both as fractions of the source frame. Without them the camera stays at the snap point and the paws don't burn.
 
-Each summon picks a random bite clip and a run loop of the same fox.
+Each summon picks a random bite clip and a run loop of the same fox. An optional `carry` list holds closed-mouth run loops (same fields as `run`) used after the bite; without it the fox runs off on its ordinary run loop.
 
 ## Run locally
 
@@ -38,6 +38,7 @@ Add `?proof` to the address (http://localhost:5173/?proof) for tuning tools that
 - **Test Summon** plays the fox attack without making the gesture (works with the camera off).
 - A live readout shows the thumb-to-index ring gap in palm lengths against the charge and close thresholds, whether the other fingers count as raised, and the gesture state.
 - `?proof&at=1500` freezes the attack at that millisecond, to inspect a single frame.
+- `?attack=snatch` (works with or without `?proof`) swaps the chase, where the camera runs and the fox runs it down, for a snatch, where the camera trembles in place and the fox lunges straight in.
 
 The thresholds live in `SUMMON_DEFAULTS` in `utils/summonGesture.js`; fox size and fit in `PLACEMENT` in `utils/foxPlacement.js`.
 

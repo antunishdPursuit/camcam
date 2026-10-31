@@ -83,7 +83,7 @@ async function loadModel() {
       hands = new Hands({ locateFile: (file) => `${MEDIAPIPE_HANDS_URL}/${file}` });
       hands.setOptions({
         // Two slots so a background false detection can't crowd out the real
-        // hand; handFilter keeps the largest.
+        // hand; handFilter stays with the tracked hand (see handSelection.js).
         maxNumHands: 2,
         modelComplexity: 1,
         minDetectionConfidence: 0.8,

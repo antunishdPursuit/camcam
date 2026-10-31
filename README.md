@@ -9,7 +9,7 @@ Browser hand-tracking camera experience. MediaPipe Hands tracks your hand in the
 3. After one second it reads **Charged**.
 4. Close the ring (fingertips together). A fox eye opens in the ring, and a moment later a fox gallops in from the right edge of the page on fire-bursting paws while the camera view shrinks and runs; the fox catches it on the move and the camera view is pulled into its mouth as its jaws close; then it runs off across the page with its mouth shut. After a moment the camera view comes back.
 
-The camera view is mirrored, like looking in a mirror. Closing well before **Charged** wastes the charge; open the ring to start again. Closing in the last stretch of the charge is held, and the fox comes as soon as the charge completes. Brief tracking dropouts (up to about half a second) keep the charge. Escape cancels a charge or the effect, and nothing relights until you drop the ring pose; Stop turns the camera off at any time. With reduced motion enabled in your system settings, the fox fades in and out in place instead of crossing the page.
+The camera view is mirrored, like looking in a mirror. Closing well before **Charged** wastes the charge; open the ring to start again. Closing in the last stretch of the charge is held, and the fox comes as soon as the charge completes. Brief tracking dropouts (up to about half a second) keep the charge. Escape cancels a charge or the effect, and nothing relights until you drop the ring pose or take your hand out of view; Stop turns the camera off at any time. With reduced motion enabled in your system settings, the fox fades in and out in place instead of crossing the page.
 
 ## Artwork
 

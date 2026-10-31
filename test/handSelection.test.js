@@ -46,10 +46,10 @@ test('losing a confirmed hand for longer than the dropout needs fresh confirmati
   const h = hand(0.2);
   filter.update([h], W, H, 0);
   assert.equal(filter.update([h], W, H, 33), h);
-  assert.equal(filter.update([], W, H, 300), null);
-  assert.equal(filter.update([], W, H, 600), null);
-  assert.equal(filter.update([h], W, H, 633), null);
-  assert.equal(filter.update([h], W, H, 666), h);
+  assert.equal(filter.update([], W, H, 100), null);
+  assert.equal(filter.update([], W, H, 400), null);
+  assert.equal(filter.update([h], W, H, 700), null);
+  assert.equal(filter.update([h], W, H, 733), h);
 });
 
 test('a confirmed hand comes straight back after a dropout shorter than the allowance', () => {
@@ -70,24 +70,54 @@ test('detections below the minimum score are ignored', () => {
   assert.equal(filter.update([ghost], W, H, 33, [0.5]), null);
 });
 
-test('a confirmed hand is kept over a larger detection elsewhere', () => {
+test('a confirmed hand is kept over a somewhat larger detection elsewhere', () => {
   const filter = createHandFilter({ confirmFrames: 2 });
   const real = hand(0.15, 0.3);
-  const ghost = hand(0.25, 0.8);
+  const other = hand(0.18, 0.8); // 1.2x, under the takeover ratio
   filter.update([real], W, H, 0);
   assert.equal(filter.update([real], W, H, 33), real);
-  assert.equal(filter.update([ghost, real], W, H, 66), real);
-  assert.equal(filter.update([real, ghost], W, H, 99), real);
+  for (let t = 66; t <= 660; t += 33) assert.equal(filter.update([other, real], W, H, t), real);
 });
 
-test('during a dropout a detection elsewhere does not take over', () => {
+test('a much larger hand elsewhere takes over once it holds up for the confirm frames', () => {
+  // The case where a background detection was confirmed first.
+  const filter = createHandFilter({ confirmFrames: 3 });
+  const ghost = hand(0.1, 0.8);
+  const real = hand(0.2, 0.3);
+  for (let t = 0; t < 99; t += 33) filter.update([ghost], W, H, t);
+  assert.equal(filter.update([ghost, real], W, H, 99), ghost);
+  assert.equal(filter.update([real, ghost], W, H, 132), ghost);
+  assert.equal(filter.update([ghost, real], W, H, 165), real);
+  assert.equal(filter.update([ghost, real], W, H, 198), real);
+});
+
+test('during a dropout a smaller detection elsewhere does not take over', () => {
   const filter = createHandFilter({ confirmFrames: 2, dropoutMs: 500 });
   const real = hand(0.15, 0.3);
-  const ghost = hand(0.25, 0.8);
+  const ghost = hand(0.1, 0.8);
   filter.update([real], W, H, 0);
   filter.update([real], W, H, 33);
   for (let t = 66; t <= 300; t += 33) assert.equal(filter.update([ghost], W, H, t), null);
   assert.equal(filter.update([real], W, H, 333), real);
+});
+
+test('a hand that jumps far in one frame is picked up again within the confirm frames', () => {
+  const filter = createHandFilter({ confirmFrames: 3, dropoutMs: 500 });
+  const before = hand(0.15, 0.2);
+  const after = hand(0.15, 0.9);
+  for (let t = 0; t < 99; t += 33) filter.update([before], W, H, t);
+  assert.equal(filter.update([after], W, H, 99), null);
+  assert.equal(filter.update([after], W, H, 132), null);
+  assert.equal(filter.update([after], W, H, 165), after);
+});
+
+test('a hand still confirms when frames arrive slower than the dropout allowance', () => {
+  const filter = createHandFilter({ confirmFrames: 3, dropoutMs: 500 });
+  const h = hand(0.2);
+  assert.equal(filter.update([h], W, H, 0), null);
+  assert.equal(filter.update([h], W, H, 600), null);
+  assert.equal(filter.update([h], W, H, 1200), h);
+  assert.equal(filter.update([h], W, H, 1800), h);
 });
 
 test('a new hand far from the old one must confirm afresh once the old one is gone', () => {

@@ -34,7 +34,7 @@ export function measureHand(landmarks, width = 1, height = 1) {
 
 // States: idle → charging (fire lit, 1 s) → charged → summoned (held until
 // the ring reopens or the hand is lost). 'locked' follows Escape until the
-// ring pose (open or closed) is released. Events: 'charge', 'charged', 'fizzle', 'summon'.
+// ring pose (open or closed) is released or the hand is gone past the grace. Events: 'charge', 'charged', 'fizzle', 'summon'.
 export function createSummonGesture(options = {}) {
   const t = { ...SUMMON_DEFAULTS, ...options };
   let state = 'idle';
@@ -75,7 +75,13 @@ export function createSummonGesture(options = {}) {
 
     if (!hand) {
       // Tracking often drops a frame or two on a self-occluding ring; keep the
-      // charge through a short dropout, and only let it go after the grace.
+      // charge (or the Escape lock) through a short dropout, and only let it
+      // go after the grace.
+      if (state === 'locked') {
+        lostSince ??= now;
+        if (now - lostSince >= t.lostGraceMs) toIdle();
+        return null;
+      }
       if (isLit()) {
         lostSince ??= now;
         return now - lostSince >= t.lostGraceMs ? fizzle() : null;

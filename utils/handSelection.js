@@ -2,7 +2,8 @@
 // and low-confidence detections, require a new hand to persist a few frames
 // before using it, and once a hand is confirmed stay with it: follow the
 // detection nearest where it was, and let it vanish briefly (the ring pose
-// self-occludes) without handing over to whatever else is in the frame.
+// self-occludes). Another hand takes over only by holding up for a few frames
+// while clearly bigger, or about as big while the tracked one is missing.
 // Thresholds are starting proposals to tune against real camera trials.
 import { LANDMARK, distancePx, palmLength } from './landmarks.js';
 
@@ -11,7 +12,10 @@ export const HAND_FILTER_DEFAULTS = {
   minScore: 0.8,         // MediaPipe handedness score; drop shakier detections
   confirmFrames: 3,
   dropoutMs: 500,        // a confirmed hand may vanish this long and come straight back
-  maxJumpPalms: 2        // a detection further than this from the tracked wrist is another hand
+  maxJumpPalms: 2,       // a detection further than this from the tracked wrist is another hand
+  takeoverRatio: 1.25,   // another hand this much bigger than the tracked one takes over...
+  reappearRatio: 0.8     // ...or, while the tracked hand is missing, one about its size;
+                         // either only after holding up for confirmFrames
 };
 
 export function pickLargestHand(hands, width, height, minPalmFraction) {
@@ -46,19 +50,46 @@ export function pickNearestHand(hands, width, height, minPalmFraction, tracked, 
 export function createHandFilter(options = {}) {
   const t = { ...HAND_FILTER_DEFAULTS, ...options };
   let seenFrames = 0;
-  let tracked = null; // { wrist, palm, at } of the hand last used or being confirmed
+  let tracked = null;      // { wrist, palm } of the hand last used or being confirmed
+  let missingSince = null; // when the confirmed hand was first missed
+  let challenger = null;   // { wrist, palm, frames } of another hand bidding to take over
 
   function reset() {
     seenFrames = 0;
     tracked = null;
+    missingSince = null;
+    challenger = null;
+  }
+
+  const describe = (hand, width, height) => ({ wrist: hand[LANDMARK.WRIST], palm: palmLength(hand, width, height) });
+
+  // A different hand takes over only if it keeps qualifying, in the same
+  // place, for confirmFrames in a row: a passing phantom can't steal the slot,
+  // but the real hand isn't shut out by whatever was confirmed first.
+  function takeover(candidates, near, width, height) {
+    const other = pickLargestHand(candidates.filter((c) => c !== near), width, height, t.minPalmFraction);
+    const bar = near ? t.takeoverRatio * palmLength(near, width, height) : t.reappearRatio * tracked.palm;
+    if (!other || palmLength(other, width, height) < bar) {
+      challenger = null;
+      return null;
+    }
+    const same = challenger && pickNearestHand([other], width, height, t.minPalmFraction, challenger, t.maxJumpPalms);
+    challenger = { ...describe(other, width, height), frames: same ? challenger.frames + 1 : 1 };
+    if (challenger.frames < t.confirmFrames) return null;
+    challenger = null;
+    return other;
   }
 
   // scores: MediaPipe's per-hand handedness scores, in the same order as hands.
   function update(hands, width, height, now = performance.now(), scores = null) {
-    if (tracked && now - tracked.at > t.dropoutMs) reset();
+    if (missingSince !== null && now - missingSince > t.dropoutMs) reset();
     const candidates = (hands ?? []).filter((_, i) => (scores?.[i] ?? 1) >= t.minScore);
-    let hand = tracked ? pickNearestHand(candidates, width, height, t.minPalmFraction, tracked, t.maxJumpPalms) : null;
-    if (!hand && seenFrames < t.confirmFrames) {
+    const confirmed = seenFrames >= t.confirmFrames;
+    const near = tracked ? pickNearestHand(candidates, width, height, t.minPalmFraction, tracked, t.maxJumpPalms) : null;
+    let hand = near;
+    if (confirmed) {
+      hand = takeover(candidates, near, width, height) ?? near;
+    } else if (!near) {
       // Nothing confirmed to hold on to: (re)start on the largest hand, the
       // participant's being nearest the lens.
       seenFrames = 0;
@@ -67,11 +98,13 @@ export function createHandFilter(options = {}) {
     if (!hand) {
       // A confirmed hand keeps its place through a short dropout; an
       // unconfirmed (possibly phantom) one gets no such grace.
-      if (seenFrames < t.confirmFrames) tracked = null;
+      if (confirmed) missingSince ??= now;
+      else tracked = null;
       return null;
     }
+    missingSince = null;
     seenFrames = Math.min(seenFrames + 1, t.confirmFrames);
-    tracked = { wrist: hand[LANDMARK.WRIST], palm: palmLength(hand, width, height), at: now };
+    tracked = describe(hand, width, height);
     return seenFrames >= t.confirmFrames ? hand : null;
   }
 

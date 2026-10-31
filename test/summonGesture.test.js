@@ -214,6 +214,15 @@ test('after an Escape lock, holding the ring stays off until the pose is release
   assert.deepEqual(run(g, [hand({ gap: 1.2 }), ...repeat(OPEN, 2)], 4000), ['charge']);
 });
 
+test('the Escape lock survives a short tracking dropout but not a long absence', () => {
+  const g = createSummonGesture();
+  run(g, repeat(OPEN, FULL_CHARGE));
+  g.reset({ lock: true });
+  assert.deepEqual(run(g, [...repeat(CLOSED, 3), null, null, ...repeat(OPEN, 10)], 2000), []);
+  assert.equal(g.state, 'locked');
+  assert.deepEqual(run(g, [...repeat(null, 20), ...repeat(OPEN, 2)], 3000), ['charge']);
+});
+
 test('after an Escape lock, a closed ring stays locked until the pose is released', () => {
   const g = createSummonGesture();
   run(g, [...repeat(OPEN, FULL_CHARGE), ...repeat(CLOSED, 2)]);

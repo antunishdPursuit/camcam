@@ -115,3 +115,20 @@ test('stop reports stopped before the camera finishes releasing', async () => {
   release.resolve();
   await stopping;
 });
+
+test('openCamera is told when its start has been superseded', async () => {
+  const pending = deferred();
+  let isCurrent;
+  const { controller } = setup({ openCamera: (current) => { isCurrent = current; return pending.promise; } });
+  const starting = controller.start();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(isCurrent(), true);
+  await controller.stop();
+  assert.equal(isCurrent(), false);
+  pending.resolve(fakeCamera());
+  await starting;
+});
+
+test('a lost camera has its own message', () => {
+  assert.match(describeError(namedError('CameraLostError')), /disconnected/);
+});

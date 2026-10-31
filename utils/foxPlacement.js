@@ -40,7 +40,9 @@ export function fleeDistance({ box, scale }, p = PLACEMENT) {
 // gape: fraction of the frame height spanned by the open jaws just before the
 // bite. The camera shrinks until its height fits between them; in side view
 // the jaws are narrow, so its sides stick out like something held in the mouth.
+// A clip without a gape gets the largest size rather than NaN.
 export function swallowScale({ box, viewport, gape }, p = PLACEMENT) {
-  const h = Math.min(box.h * p.foxToBox, viewport.h * p.maxViewportHeight);
+  if (!Number.isFinite(gape)) return p.swallowScale;
+  const { h } = foxSize({ box, viewport, frame: { w: 1, h: 1 } }, p);
   return Math.min(p.swallowScale, (p.mouthFill * gape * h) / box.h);
 }

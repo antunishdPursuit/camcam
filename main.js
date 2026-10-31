@@ -77,7 +77,19 @@ function showProofReadout(landmarks) {
     : `No hand · ${summon.state}`);
 }
 
-async function loadModel() {
+// One load at a time: a Stop then Start while the model is still loading
+// waits on the same load instead of initializing the instance twice.
+let modelLoad = null;
+
+function loadModel() {
+  modelLoad ??= initModel().catch((error) => {
+    modelLoad = null;
+    throw error;
+  });
+  return modelLoad;
+}
+
+async function initModel() {
   try {
     if (!hands) {
       hands = new Hands({ locateFile: (file) => `${MEDIAPIPE_HANDS_URL}/${file}` });
@@ -124,7 +136,8 @@ function renderStatus(state, message) {
 
 const controller = createCameraController({
   loadModel,
-  openCamera: () => openCamera(video, {
+  openCamera: (isCurrent) => openCamera(video, {
+    isCurrent,
     onFrame: async (frame) => {
       try {
         await hands.send({ image: frame });

@@ -500,7 +500,8 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
       const index = ((Math.trunc(biteIndex) % count) + count) % count; // any integer, even negative
       chosen = pickClips(() => (index + 0.5) / count);
       boxColors = readBoxColors();
-      drawAttack(effectFrame(ms, reducedMotion(), chosen?.timing), 0);
+      reduced = reducedMotion();
+      drawAttack(effectFrame(ms, reduced, chosen?.timing), 0);
     },
     get playing() { return sequenceStart !== null; }
   };

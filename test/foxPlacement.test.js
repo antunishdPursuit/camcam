@@ -66,3 +66,12 @@ test('the shrunk camera height fits between the jaws at every window size', () =
     assert.ok(box.h * s <= gape * h * PLACEMENT.mouthFill + 1e-6, name);
   }
 });
+
+test('swallowScale sizes against the drawn fox and survives a missing gape', () => {
+  for (const { name, viewport, box } of LAYOUTS) {
+    const { h } = foxSize({ box, viewport, frame });
+    const expected = Math.min(PLACEMENT.swallowScale, (PLACEMENT.mouthFill * gape * h) / box.h);
+    assert.equal(swallowScale({ box, viewport, gape }), expected, name);
+    assert.equal(swallowScale({ box, viewport, gape: undefined }), PLACEMENT.swallowScale, name);
+  }
+});

@@ -19,7 +19,13 @@ const types = {
 };
 
 createServer(async (req, res) => {
-  const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+  let pathname;
+  try {
+    pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+  } catch {
+    res.writeHead(400).end('Bad request');
+    return;
+  }
   const file = normalize(join(root, pathname.endsWith('/') ? `${pathname}index.html` : pathname));
   if (file !== root && !file.startsWith(root + sep)) {
     res.writeHead(403).end();

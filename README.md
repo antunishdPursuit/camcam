@@ -29,7 +29,7 @@ https://antunishdpursuit.github.io/camcam/ is deployed from `main` by `.github/w
 
 ## Run locally
 
-Requires Node 20 or newer. No install step.
+Requires Node 20.11 or newer. No install step.
 
 ```bash
 npm start

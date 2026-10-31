@@ -30,6 +30,9 @@ try {
   if (!manifest.run?.length || !manifest.bite?.length) {
     console.log('Warning: sprites.json needs at least one run and one bite clip, or the app shows no fox.\n');
   }
+  for (const clip of manifest.bite ?? []) {
+    if (!Number.isFinite(clip.gape)) console.log(`Warning: bite clip ${clip.sheet} has no gape; the camera won't be sized to its jaws.\n`);
+  }
   for (const clip of [...(manifest.run ?? []), ...(manifest.bite ?? []), ...(manifest.carry ?? [])]) {
     needed.add(`sprites/${clip.sheet}`);
   }

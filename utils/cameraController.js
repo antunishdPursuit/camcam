@@ -27,7 +27,7 @@ export function createCameraController({ loadModel, openCamera, onStatus }) {
       if (id !== session) return;
 
       setState('starting', 'Waiting for camera permission…');
-      const opened = await openCamera();
+      const opened = await openCamera(() => id === session);
       if (id !== session) {
         await opened.stop();
         return;
@@ -79,6 +79,8 @@ export function describeError(error) {
     case 'NotReadableError':
     case 'AbortError':
       return 'The camera is busy or unavailable. Close other apps using it and try again.';
+    case 'CameraLostError':
+      return 'The camera disconnected. Reconnect it, then choose Start Camera.';
     case 'ModelLoadError':
       return 'The hand-tracking model couldn\'t load. Check your connection and try again.';
     case 'InferenceError':

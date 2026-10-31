@@ -1,4 +1,4 @@
-import { EYE_MS, biteTiming, clipFrame, effectFrame, eyeState } from './summonTimeline.js';
+import { EYE_MS, biteTiming, clipFrame, effectFrame, eyeState, soundCues } from './summonTimeline.js';
 import { PLACEMENT, fleeDistance, foxRectAt, foxSize, jawsX, swallowScale } from './foxPlacement.js';
 import { palmLength } from './landmarks.js';
 import { FINGERS, alongFinger, fireReach, ringCenter } from './handFire.js';
@@ -17,7 +17,7 @@ const FIRE = ['#ffd27a', '#ff9a2e', '#ff5a1f', '#c2261b'];
 // `art` is an optional promise of { flames, fox } from loadSummonArt(), which
 // never rejects; either part may be null. Until it resolves, or for a missing
 // part, fire falls back to drawn particles and the attack shows only the box.
-export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reducedMotion = () => false, art: artPromise }) {
+export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reducedMotion = () => false, art: artPromise, sound = null }) {
   const ctx = boxCanvas.getContext('2d');
   const W = boxCanvas.width;
   const H = boxCanvas.height;
@@ -255,6 +255,7 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
   // Spirit fire bursting from the paws that touch down, trailing behind the
   // running fox, so it reads as running on fire rather than on a hidden floor.
   let pawParticles = [];
+  let lastRunFrame = null; // run-clip frame last drawn, to hear each paw land once
 
   function emitPawFire(clip, index, r, running) {
     for (const [fx, fy] of clip.feet?.[index] ?? []) {
@@ -377,6 +378,12 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
       drawSprite(clip, index, r);
       page.restore();
       if (!reduced) emitPawFire(clip, index, r, looping);
+      // Footsteps while running in: a step each time another paw touches down.
+      if (f.sprite === 'run' && index !== lastRunFrame) {
+        const prev = lastRunFrame ?? index;
+        if ((clip.feet?.[index]?.length ?? 0) > (clip.feet?.[prev]?.length ?? 0)) sound?.footstep(1 - f.foxGap);
+        lastRunFrame = index;
+      }
       if (f.boxHeld) mouth = mouthAt(clip, index, r);
     }
     drawPawFire(dt);
@@ -463,6 +470,7 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
       hand = landmarks ?? (level > 0 ? hand : null);
       fireLevel = hand ? level : 0;
       charging = fireLevel > 0;
+      sound?.setFire(fireLevel);
       if (charging) {
         if (sequenceStart === null) reduced = reducedMotion();
         startLoop();
@@ -478,12 +486,15 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
         }
       }
       eyeAt = null;
+      lastRunFrame = null;
       chosen = pickClips();
       boxColors = readBoxColors();
       sequenceStart = performance.now();
+      sound?.summon(soundCues(reduced, chosen?.timing), EYE_MS);
       startLoop();
     },
     cancel() {
+      sound?.cancel();
       sequenceStart = null;
       particles = [];
       charging = false;

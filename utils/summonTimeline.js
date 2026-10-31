@@ -44,6 +44,12 @@ export function effectDuration(reducedMotion, bite = DEFAULT_BITE) {
   return reducedMotion ? REDUCED.end : fullTimes(bite).end;
 }
 
+// When the sound cues land, in ms from the start of the attack: snap as the
+// jaws close.
+export function soundCues(reducedMotion = false, bite = DEFAULT_BITE) {
+  return { snap: reducedMotion ? REDUCED.snap : fullTimes(bite).snap };
+}
+
 // sprite: 'run' (running in), 'bite', or 'carry' (running off with its mouth
 // shut); spriteMs: time into that clip.
 // foxGap: before the snap, how far the fox's jaws are behind the camera:

@@ -5,6 +5,7 @@ import { createSummonGesture, measureHand, SUMMON_DEFAULTS } from './utils/summo
 import { createHandFilter } from './utils/handSelection.js';
 import { createSummonEffect } from './utils/summonEffect.js';
 import { loadSummonArt } from './utils/summonArt.js';
+import { createSummonSound } from './utils/summonSound.js';
 
 const MEDIAPIPE_HANDS_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240';
 
@@ -15,6 +16,7 @@ const gestureDisplay = document.querySelector('#gesture span');
 const statusDisplay = document.getElementById('status');
 const startButton = document.getElementById('startCameraBtn');
 const stopButton = document.getElementById('stopCameraBtn');
+const soundButton = document.getElementById('soundBtn');
 const proofReadout = document.getElementById('proofReadout');
 
 let hands = null;
@@ -28,13 +30,15 @@ const params = new URLSearchParams(location.search);
 const proofMode = params.has('proof');
 const reducedMotionQuery = matchMedia('(prefers-reduced-motion: reduce)');
 const summonArt = loadSummonArt();
+const sound = createSummonSound({ clips: { howl: 'assets/sounds/howl.mp3', bite: 'assets/sounds/bite.mp3' } });
 const effect = createSummonEffect({
   boxCanvas: document.getElementById('effect_canvas'),
   pageCanvas: document.getElementById('summon_overlay'),
   camera: canvas,
   box: document.querySelector('.container'),
   reducedMotion: () => reducedMotionQuery.matches,
-  art: summonArt
+  art: summonArt,
+  sound
 });
 
 function onResults(results) {
@@ -54,6 +58,7 @@ function onResults(results) {
   if (!effect.playing) {
     const event = summon.update(landmarks, now, canvas.width, canvas.height);
     if (event === 'summon') effect.play();
+    if (event === 'charged') sound.charged();
   }
   const lit = summon.state === 'charging' || summon.state === 'charged';
   effect.setHand(landmarks, lit ? Math.max(0.1, summon.chargeProgress) : 0);
@@ -156,7 +161,11 @@ const controller = createCameraController({
   onStatus: renderStatus
 });
 
-startButton.addEventListener('click', () => controller.start());
+// Browsers only allow audio after a click, so the buttons unlock it.
+startButton.addEventListener('click', () => {
+  sound.unlock();
+  controller.start();
+});
 stopButton.addEventListener('click', () => controller.stop());
 
 // Escape cancels a charge or a running effect without touching the camera.
@@ -173,10 +182,29 @@ if (proofMode) {
   proofReadout.hidden = false;
   // Drop any charge first, so finger fire doesn't keep burning over the fox.
   testButton.addEventListener('click', () => {
+    sound.unlock();
     summon.reset();
     effect.play();
   });
 }
+
+// Sound on or off, remembered in this browser.
+const SOUND_KEY = 'camcam-sound-muted';
+function readMuted() {
+  try { return localStorage.getItem(SOUND_KEY) === '1'; } catch { return false; }
+}
+function showSound() {
+  soundButton.textContent = sound.muted ? 'Sound: off' : 'Sound: on';
+  soundButton.setAttribute('aria-pressed', String(!sound.muted));
+}
+sound.muted = readMuted();
+showSound();
+soundButton.addEventListener('click', () => {
+  sound.unlock();
+  sound.muted = !sound.muted;
+  try { localStorage.setItem(SOUND_KEY, sound.muted ? '1' : '0'); } catch {}
+  showSound();
+});
 
 renderStatus('idle', 'Choose Start Camera to begin. Video stays in this browser and is never uploaded.');
 

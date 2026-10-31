@@ -129,3 +129,20 @@ test('a new hand far from the old one must confirm afresh once the old one is go
   assert.equal(filter.update([b], W, H, 600), null);
   assert.equal(filter.update([b], W, H, 633), b);
 });
+
+test('a similar-size hand already in view does not take over during a dropout', () => {
+  const filter = createHandFilter({ confirmFrames: 3, dropoutMs: 500 });
+  const real = hand(0.15, 0.2);
+  const other = hand(0.13, 0.8); // 0.87x, in view before the dropout
+  for (let t = 0; t <= 132; t += 33) filter.update([real, other], W, H, t);
+  for (let t = 165; t <= 400; t += 33) assert.equal(filter.update([other], W, H, t), null);
+  assert.equal(filter.update([other, real], W, H, 433), real);
+});
+
+test('a bystander that drifts during a dropout is still recognised', () => {
+  const filter = createHandFilter({ confirmFrames: 3, dropoutMs: 500 });
+  const real = hand(0.16, 0.2);
+  for (let t = 0; t <= 132; t += 33) assert.equal(filter.update([real, hand(0.15, 0.8)], W, H, t), t >= 66 ? real : null);
+  let x = 0.8;
+  for (let t = 165; t <= 400; t += 33) assert.equal(filter.update([hand(0.15, (x -= 0.03))], W, H, t), null);
+});

@@ -14,8 +14,9 @@ export const HAND_FILTER_DEFAULTS = {
   dropoutMs: 500,        // a confirmed hand may vanish this long and come straight back
   maxJumpPalms: 2,       // a detection further than this from the tracked wrist is another hand
   takeoverRatio: 1.25,   // another hand this much bigger than the tracked one takes over...
-  reappearRatio: 0.8     // ...or, while the tracked hand is missing, one about its size;
-                         // either only after holding up for confirmFrames
+  reappearRatio: 0.8     // ...or, while the tracked hand is missing, one about its size
+                         // that wasn't already in view beside it; either only after
+                         // holding up for confirmFrames
 };
 
 export function pickLargestHand(hands, width, height, minPalmFraction) {
@@ -53,12 +54,14 @@ export function createHandFilter(options = {}) {
   let tracked = null;      // { wrist, palm } of the hand last used or being confirmed
   let missingSince = null; // when the confirmed hand was first missed
   let challenger = null;   // { wrist, palm, frames } of another hand bidding to take over
+  let bystanders = [];     // { wrist, palm } of other hands seen beside the tracked one
 
   function reset() {
     seenFrames = 0;
     tracked = null;
     missingSince = null;
     challenger = null;
+    bystanders = [];
   }
 
   const describe = (hand, width, height) => ({ wrist: hand[LANDMARK.WRIST], palm: palmLength(hand, width, height) });
@@ -66,6 +69,7 @@ export function createHandFilter(options = {}) {
   // A different hand takes over only if it keeps qualifying, in the same
   // place, for confirmFrames in a row: a passing phantom can't steal the slot,
   // but the real hand isn't shut out by whatever was confirmed first.
+  // candidates excludes the tracked hand's bystanders while it is missing.
   function takeover(candidates, near, width, height) {
     const other = pickLargestHand(candidates.filter((c) => c !== near), width, height, t.minPalmFraction);
     const bar = near ? t.takeoverRatio * palmLength(near, width, height) : t.reappearRatio * tracked.palm;
@@ -80,6 +84,25 @@ export function createHandFilter(options = {}) {
     return other;
   }
 
+  // While the tracked hand is missing, hands that were already in view beside
+  // it (a phantom in the background, the other hand) can't take its place:
+  // only one turning up somewhere new can, as the tracked hand does when it
+  // jumps. Bystanders are followed as they move.
+  function skipBystanders(candidates, width, height) {
+    const fresh = [];
+    const seen = new Set();
+    for (const c of candidates) {
+      const i = bystanders.findIndex((b, j) => !seen.has(j) && pickNearestHand([c], width, height, 0, b, t.maxJumpPalms));
+      if (i === -1) {
+        fresh.push(c);
+      } else {
+        seen.add(i);
+        bystanders[i] = describe(c, width, height);
+      }
+    }
+    return fresh;
+  }
+
   // scores: MediaPipe's per-hand handedness scores, in the same order as hands.
   function update(hands, width, height, now = performance.now(), scores = null) {
     if (missingSince !== null && now - missingSince > t.dropoutMs) reset();
@@ -88,7 +111,10 @@ export function createHandFilter(options = {}) {
     const near = tracked ? pickNearestHand(candidates, width, height, t.minPalmFraction, tracked, t.maxJumpPalms) : null;
     let hand = near;
     if (confirmed) {
-      hand = takeover(candidates, near, width, height) ?? near;
+      hand = takeover(near ? candidates : skipBystanders(candidates, width, height), near, width, height) ?? near;
+      if (hand === near && near) {
+        bystanders = candidates.filter((c) => c !== near).map((c) => describe(c, width, height));
+      }
     } else if (!near) {
       // Nothing confirmed to hold on to: (re)start on the largest hand, the
       // participant's being nearest the lens.

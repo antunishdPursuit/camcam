@@ -146,3 +146,38 @@ test('a bystander that drifts during a dropout is still recognised', () => {
   let x = 0.8;
   for (let t = 165; t <= 400; t += 33) assert.equal(filter.update([hand(0.15, (x -= 0.03))], W, H, t), null);
 });
+
+test('a returning hand listed before a nearby bystander is not mistaken for it', () => {
+  const filter = createHandFilter({ confirmFrames: 3, dropoutMs: 500 });
+  const real = hand(0.15, 0.2);
+  const ghost = hand(0.13, 0.75);
+  for (let t = 0; t <= 132; t += 33) filter.update([real, ghost], W, H, t);
+  filter.update([ghost], W, H, 165);
+  // The real hand jumps to land a little beside the ghost, and is listed first.
+  const back = hand(0.15, 0.85);
+  const results = [198, 231, 264, 297].map((t) => filter.update([back, ghost], W, H, t));
+  assert.ok(!results.includes(ghost), 'the ghost never takes the slot');
+  assert.equal(results.at(-1), back);
+});
+
+test('a bystander that leaves stops blocking its spot', () => {
+  const filter = createHandFilter({ confirmFrames: 3, dropoutMs: 500 });
+  const real = hand(0.16, 0.2);
+  const ghost = hand(0.15, 0.8);
+  for (let t = 0; t <= 132; t += 33) filter.update([real, ghost], W, H, t);
+  filter.update([], W, H, 165);
+  filter.update([], W, H, 198);
+  // The real hand reappears where the ghost was: picked up after the confirm frames.
+  const back = hand(0.16, 0.8);
+  const results = [231, 264, 297].map((t) => filter.update([back], W, H, t));
+  assert.equal(results.at(-1), back);
+});
+
+test('bystanders are recorded from the first frames, before confirmation', () => {
+  const filter = createHandFilter({ confirmFrames: 3, dropoutMs: 500 });
+  const real = hand(0.15, 0.2);
+  const ghost = hand(0.13, 0.8);
+  for (let t = 0; t <= 66; t += 33) filter.update([real, ghost], W, H, t);
+  for (let t = 99; t <= 300; t += 33) assert.equal(filter.update([ghost], W, H, t), null);
+  assert.equal(filter.update([ghost, real], W, H, 333), real);
+});

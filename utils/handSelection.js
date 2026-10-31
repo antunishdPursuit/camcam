@@ -3,7 +3,8 @@
 // before using it, and once a hand is confirmed stay with it: follow the
 // detection nearest where it was, and let it vanish briefly (the ring pose
 // self-occludes). Another hand takes over only by holding up for a few frames
-// while clearly bigger, or about as big while the tracked one is missing.
+// while clearly bigger, or, while the tracked one is missing, about as big and
+// turning up somewhere new (hands already in view beside it are bystanders).
 // Thresholds are starting proposals to tune against real camera trials.
 import { LANDMARK, distancePx, palmLength } from './landmarks.js';
 
@@ -18,6 +19,9 @@ export const HAND_FILTER_DEFAULTS = {
                          // that wasn't already in view beside it; either only after
                          // holding up for confirmFrames
 };
+
+// A bystander unseen for this many frames is forgotten.
+const BYSTANDER_MISSES = 2;
 
 export function pickLargestHand(hands, width, height, minPalmFraction) {
   let best = null;
@@ -54,7 +58,7 @@ export function createHandFilter(options = {}) {
   let tracked = null;      // { wrist, palm } of the hand last used or being confirmed
   let missingSince = null; // when the confirmed hand was first missed
   let challenger = null;   // { wrist, palm, frames } of another hand bidding to take over
-  let bystanders = [];     // { wrist, palm } of other hands seen beside the tracked one
+  let bystanders = [];     // { wrist, palm, missed } of other hands seen beside the tracked one
 
   function reset() {
     seenFrames = 0;
@@ -87,20 +91,28 @@ export function createHandFilter(options = {}) {
   // While the tracked hand is missing, hands that were already in view beside
   // it (a phantom in the background, the other hand) can't take its place:
   // only one turning up somewhere new can, as the tracked hand does when it
-  // jumps. Bystanders are followed as they move.
+  // jumps. Bystanders are followed as they move, matched nearest pair first so
+  // the list order can't swap them with the returning hand, and forgotten
+  // after BYSTANDER_MISSES frames unseen so the spot they left isn't blocked.
   function skipBystanders(candidates, width, height) {
-    const fresh = [];
-    const seen = new Set();
-    for (const c of candidates) {
-      const i = bystanders.findIndex((b, j) => !seen.has(j) && pickNearestHand([c], width, height, 0, b, t.maxJumpPalms));
-      if (i === -1) {
-        fresh.push(c);
-      } else {
-        seen.add(i);
-        bystanders[i] = describe(c, width, height);
-      }
+    const pairs = [];
+    candidates.forEach((c, ci) => bystanders.forEach((b, bi) => {
+      const d = distancePx(c[LANDMARK.WRIST], b.wrist, width, height);
+      if (d <= t.maxJumpPalms * b.palm) pairs.push({ ci, bi, d });
+    }));
+    pairs.sort((a, b) => a.d - b.d);
+    const matched = new Map(); // bystander index → candidate index
+    const taken = new Set();
+    for (const { ci, bi } of pairs) {
+      if (matched.has(bi) || taken.has(ci)) continue;
+      matched.set(bi, ci);
+      taken.add(ci);
     }
-    return fresh;
+    bystanders = bystanders.flatMap((b, bi) => {
+      if (matched.has(bi)) return [{ ...describe(candidates[matched.get(bi)], width, height), missed: 0 }];
+      return b.missed + 1 < BYSTANDER_MISSES ? [{ ...b, missed: b.missed + 1 }] : [];
+    });
+    return candidates.filter((_, ci) => !taken.has(ci));
   }
 
   // scores: MediaPipe's per-hand handedness scores, in the same order as hands.
@@ -112,9 +124,6 @@ export function createHandFilter(options = {}) {
     let hand = near;
     if (confirmed) {
       hand = takeover(near ? candidates : skipBystanders(candidates, width, height), near, width, height) ?? near;
-      if (hand === near && near) {
-        bystanders = candidates.filter((c) => c !== near).map((c) => describe(c, width, height));
-      }
     } else if (!near) {
       // Nothing confirmed to hold on to: (re)start on the largest hand, the
       // participant's being nearest the lens.
@@ -129,6 +138,9 @@ export function createHandFilter(options = {}) {
       return null;
     }
     missingSince = null;
+    if (hand === near) {
+      bystanders = candidates.filter((c) => c !== near).map((c) => ({ ...describe(c, width, height), missed: 0 }));
+    }
     seenFrames = Math.min(seenFrames + 1, t.confirmFrames);
     tracked = describe(hand, width, height);
     return seenFrames >= t.confirmFrames ? hand : null;

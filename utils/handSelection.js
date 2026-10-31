@@ -38,7 +38,7 @@ export function pickLargestHand(hands, width, height, minPalmFraction) {
 
 // The detection whose wrist is nearest the tracked wrist, if close enough to
 // be the same hand. tracked: { wrist, palm } with palm in pixels.
-export function pickNearestHand(hands, width, height, minPalmFraction, tracked, maxJumpPalms) {
+function pickNearestHand(hands, width, height, minPalmFraction, tracked, maxJumpPalms) {
   let best = null;
   let bestDistance = maxJumpPalms * tracked.palm;
   for (const landmarks of hands ?? []) {

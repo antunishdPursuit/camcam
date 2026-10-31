@@ -38,7 +38,6 @@ export function measureHand(landmarks, width = 1, height = 1) {
 export function createSummonGesture(options = {}) {
   const t = { ...SUMMON_DEFAULTS, ...options };
   let state = 'idle';
-  let lastHand = null;
   let chargeStart = null;
   let lastNow = 0;
   let closedCount = 0;
@@ -70,7 +69,6 @@ export function createSummonGesture(options = {}) {
 
   function update(landmarks, now, width, height) {
     const hand = landmarks ? measureHand(landmarks, width, height) : null;
-    lastHand = hand;
     lastNow = now;
 
     if (!hand) {
@@ -166,8 +164,6 @@ export function createSummonGesture(options = {}) {
       if (state === 'charged') return 1;
       if (state !== 'charging') return 0;
       return Math.min(1, (lastNow - chargeStart) / t.chargeHoldMs);
-    },
-    // Latest { gap, othersRaised } measurement, or null with no hand.
-    get measurement() { return lastHand; }
+    }
   };
 }

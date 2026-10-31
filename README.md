@@ -13,13 +13,15 @@ The camera view is mirrored, like looking in a mirror. Closing well before **Cha
 
 ## Artwork
 
-The fox and flame artwork lives in `assets/summon/` and is **not committed**: it was generated locally and is kept out of the repository. In a fresh clone the app still works, but without the fox; the fire falls back to simple drawn flames and the camera view still shrinks, vanishes and returns. To use the artwork, place these files in `assets/summon/` (`sprites/sprites.json` must be there for anything in the folder to load, the flames included):
+The fox and flame artwork lives in `assets/summon/`. Without it the app still works, but without the fox: the fire falls back to simple drawn flames and the camera view still shrinks, vanishes and returns. The folder holds (`sprites/sprites.json` must be there for anything in it to load, the flames included):
 
 - `flame-c.webp`, `flame-d.webp`: flame sprites with brightness-based transparency
 - `sprites/*.webp`: the full-body fox's run loops and bite clips, each a grid sprite sheet with a transparent background
 - `sprites/sprites.json`: describes the clips. `video` is the source frame size; each clip has `sheet`, `frameW`/`frameH`, `cols`, `count`, `fps`, `sourceCrop` (its position in the source frame) and `fox` (which fox it shows; a summon pairs a run and a bite of the same fox). Bite clips also have `snapFrame` (when the jaws shut), `mouth` (where they meet, as fractions of the source frame) and `gape` (open-jaw height as a fraction of the frame). Every clip also lists, per frame, `mouths` (the mouth point, where the swallowed camera is held) and `feet` (the paws touching down, where the spirit fire bursts), both as fractions of the source frame. Without them the camera stays at the snap point and the paws don't burn.
 
 Each summon picks a random bite clip and a run loop of the same fox. An optional `carry` list holds closed-mouth run loops (same fields as `run`) used after the bite; without it the fox runs off on its ordinary run loop.
+
+Only those files are loaded. `npm run check-art` lists which files in `assets/summon/` the app needs (and any that are missing) and which it never uses, so leftovers don't get committed. It only reads; it deletes nothing.
 
 ## Run locally
 
@@ -55,6 +57,7 @@ npm test
 - `utils/summonGesture.js` is the charge/summon state machine.
 - `utils/summonTimeline.js` (timing and clip playback, including the eye), `utils/handFire.js` (where the finger flames and the eye go), `utils/foxPlacement.js` (where the fox goes and how far the camera view shrinks) and `utils/summonEffect.js` (drawing; picks the clips) make up the fire and fox effect; `utils/summonArt.js` loads the artwork.
 - `utils/landmarks.js` holds shared hand-landmark math.
+- `scripts/serve.js` is the local dev server; `scripts/check-art.js` checks the artwork folder.
 
 ## Privacy
 

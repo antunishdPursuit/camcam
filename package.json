@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "node scripts/serve.js",
-    "test": "node --test"
+    "test": "node --test",
+    "check-art": "node scripts/check-art.js"
   }
 }

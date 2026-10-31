@@ -15,15 +15,17 @@ const gestureDisplay = document.querySelector('#gesture span');
 const statusDisplay = document.getElementById('status');
 const startButton = document.getElementById('startCameraBtn');
 const stopButton = document.getElementById('stopCameraBtn');
+const proofReadout = document.getElementById('proofReadout');
 
 let hands = null;
 const summon = createSummonGesture();
 const handFilter = createHandFilter();
 const SUMMON_LABELS = { charging: 'Charging', charged: 'Charged', summoned: 'Summoned', locked: 'Cancelled, release your hand' };
 
-// Fire and summon effect (placeholder art for now). ?proof in the URL adds
-// the test button, tuning readout and ?at= freeze frames.
-const proofMode = new URLSearchParams(location.search).has('proof');
+// Fire and summon effect. ?proof in the URL adds the test button, tuning
+// readout and ?at= freeze frames.
+const params = new URLSearchParams(location.search);
+const proofMode = params.has('proof');
 const reducedMotionQuery = matchMedia('(prefers-reduced-motion: reduce)');
 const summonArt = loadSummonArt();
 const effect = createSummonEffect({
@@ -66,8 +68,6 @@ function setText(element, text) {
 
 // Proof-only tuning readout: live ring gap (in palm lengths) against the
 // charge and close thresholds, so a miss can be traced to the pose.
-const proofReadout = document.getElementById('proofReadout');
-
 // Measured here rather than read from the gesture, which pauses during the effect.
 function showProofReadout(landmarks) {
   const m = landmarks ? measureHand(landmarks, canvas.width, canvas.height) : null;
@@ -159,7 +159,8 @@ if (proofMode) {
 
 renderStatus('idle', 'Choose Start Camera to begin. Video stays in this browser and is never uploaded.');
 
-// ?proof&at=1500 freezes the effect at that millisecond for inspection.
-const freezeAt = Number(new URLSearchParams(location.search).get('at'));
-const freezeBite = Number(new URLSearchParams(location.search).get('bite')) || 0;
+// ?proof&at=1500 freezes the effect at that millisecond for inspection;
+// &bite=N picks which bite clip to show.
+const freezeAt = Number(params.get('at'));
+const freezeBite = Number(params.get('bite')) || 0;
 if (proofMode && freezeAt > 0) summonArt.finally(() => effect.freezeAt(freezeAt, freezeBite));

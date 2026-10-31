@@ -2,7 +2,7 @@
 // close but apart, other fingers raised) for a second to charge, then close the
 // ring to fire once. Distances are divided by palm size so hand distance from the camera
 // doesn't matter, and they don't depend on which hand or a mirrored view.
-// Thresholds are starting proposals to tune against real camera trials.
+// Thresholds live in SUMMON_DEFAULTS; adjust them against live camera trials.
 // A natural near-OK ring measured about 0.23 palms in a live camera trial,
 // so the charge band starts below that.
 import { LANDMARK, distancePx, palmLength } from './landmarks.js';

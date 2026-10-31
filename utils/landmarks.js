@@ -3,10 +3,7 @@
 // 4:3 frame doesn't skew distances.
 export const LANDMARK = {
   WRIST: 0,
-  THUMB_IP: 3,
   THUMB_TIP: 4,
-  INDEX_PIP: 6,
-  INDEX_DIP: 7,
   INDEX_TIP: 8,
   MIDDLE_MCP: 9
 };

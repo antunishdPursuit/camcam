@@ -27,6 +27,9 @@ try {
 
 try {
   const manifest = JSON.parse(await readFile(join(dir, 'sprites', 'sprites.json'), 'utf8'));
+  if (!manifest.run?.length || !manifest.bite?.length) {
+    console.log('Warning: sprites.json needs at least one run and one bite clip, or the app shows no fox.\n');
+  }
   for (const clip of [...(manifest.run ?? []), ...(manifest.bite ?? []), ...(manifest.carry ?? [])]) {
     needed.add(`sprites/${clip.sheet}`);
   }

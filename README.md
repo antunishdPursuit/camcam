@@ -39,7 +39,7 @@ Add `?proof` to the address (http://localhost:5173/?proof) for tuning tools that
 
 - **Test Summon** plays the fox attack without making the gesture (works with the camera off).
 - A live readout shows the thumb-to-index ring gap in palm lengths against the charge and close thresholds, whether the other fingers count as raised, and the gesture state.
-- `?proof&at=1500` freezes the attack at that millisecond, to inspect a single frame.
+- `?proof&at=1500` freezes the attack at that millisecond, to inspect a single frame; add `&bite=1` (and so on) to pick which bite clip it shows.
 
 The thresholds live in `SUMMON_DEFAULTS` in `utils/summonGesture.js` and `HAND_FILTER_DEFAULTS` in `utils/handSelection.js`; fox size and fit in `PLACEMENT` in `utils/foxPlacement.js`.
 
@@ -56,7 +56,7 @@ npm test
 - `utils/handSelection.js` filters out phantom background hands.
 - `utils/summonGesture.js` is the charge/summon state machine.
 - `utils/summonTimeline.js` (timing and clip playback, including the eye), `utils/handFire.js` (where the finger flames and the eye go), `utils/foxPlacement.js` (where the fox goes and how far the camera view shrinks) and `utils/summonEffect.js` (drawing; picks the clips) make up the fire and fox effect; `utils/summonArt.js` loads the artwork.
-- `utils/landmarks.js` holds shared hand-landmark math.
+- `utils/landmarks.js` holds shared hand-landmark math; `utils/drawUtils.js` draws the video frame and the hand's landmark dots.
 - `scripts/serve.js` is the local dev server; `scripts/check-art.js` checks the artwork folder.
 
 ## Privacy

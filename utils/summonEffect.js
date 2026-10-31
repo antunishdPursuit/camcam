@@ -240,14 +240,14 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
 
   // Draw one frame of a clip. Clips are positioned in the coordinates of the
   // source video frame (sourceCrop), so switching from run to bite doesn't jump.
-  function drawSprite(clip, index, r, dx, dy) {
+  function drawSprite(clip, index, r) {
     const video = art.fox.video;
     const [x0, y0, x1, y1] = clip.sourceCrop;
     const sx = (index % clip.cols) * clip.frameW;
     const sy = Math.floor(index / clip.cols) * clip.frameH;
     page.drawImage(
       clip.img, sx, sy, clip.frameW, clip.frameH,
-      r.x + (x0 / video.w) * r.w + dx, r.y + (y0 / video.h) * r.h + dy,
+      r.x + (x0 / video.w) * r.w, r.y + (y0 / video.h) * r.h,
       ((x1 - x0) / video.w) * r.w, ((y1 - y0) / video.h) * r.h
     );
   }
@@ -257,7 +257,7 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
   let pawParticles = [];
 
   function emitPawFire(clip, index, r, running) {
-    for (const [fx, fy] of clip.feet[index] ?? []) {
+    for (const [fx, fy] of clip.feet?.[index] ?? []) {
       if (Math.random() > 0.7) continue;
       pawParticles.push({
         x: r.x + fx * r.w + (Math.random() - 0.5) * r.h * 0.04,
@@ -374,7 +374,7 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
       const index = clipFrame(clip, f.spriteMs, looping);
       page.save();
       page.globalAlpha = f.foxAlpha;
-      drawSprite(clip, index, r, 0, 0);
+      drawSprite(clip, index, r);
       page.restore();
       if (!reduced) emitPawFire(clip, index, r, looping);
       if (f.boxHeld) mouth = mouthAt(clip, index, r);
@@ -382,8 +382,8 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
     drawPawFire(dt);
 
     if (f.boxOnPage && f.gulp < 1) {
-      // Fleeing: a light running bob, no tilt. As the jaws close it is pulled into the fox's actual mouth and is gone
-      // exactly at the snap.
+      // Fleeing: a light running bob, no tilt. As the jaws close it is pulled
+      // into the fox's actual mouth and is gone exactly at the snap.
       const size = scale * (1 - f.gulp);
       let center = { x: camX, y: home.y };
       if (!reduced && f.camTravel > 0 && f.camTravel < 1) {

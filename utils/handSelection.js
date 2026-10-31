@@ -5,7 +5,7 @@
 // self-occludes). Another hand takes over only by holding up for a few frames
 // while clearly bigger, or, while the tracked one is missing, about as big and
 // turning up somewhere new (hands already in view beside it are bystanders).
-// Thresholds are starting proposals to tune against real camera trials.
+// Thresholds live in HAND_FILTER_DEFAULTS; adjust them against live camera trials.
 import { LANDMARK, distancePx, palmLength } from './landmarks.js';
 
 export const HAND_FILTER_DEFAULTS = {

@@ -183,10 +183,6 @@ header p {
   border-color: var(--accent);
 }
 
-#controls button[hidden] {
-  display: none;
-}
-
 /* Amber eye-ring target, shown only while the camera is off. */
 .stage-mark {
   position: absolute;

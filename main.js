@@ -136,8 +136,9 @@ function renderStatus(state, message) {
 
 const controller = createCameraController({
   loadModel,
-  openCamera: (isCurrent) => openCamera(video, {
+  openCamera: (isCurrent, signal) => openCamera(video, {
     isCurrent,
+    signal,
     onFrame: async (frame) => {
       try {
         await hands.send({ image: frame });

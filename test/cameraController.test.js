@@ -132,3 +132,32 @@ test('openCamera is told when its start has been superseded', async () => {
 test('a lost camera has its own message', () => {
   assert.match(describeError(namedError('CameraLostError')), /disconnected/);
 });
+
+test('a restart waits for the old camera to finish releasing', async () => {
+  const release = deferred();
+  let opens = 0;
+  const { controller } = setup({ openCamera: async () => { opens++; return { stop: () => release.promise }; } });
+  await controller.start();
+  const stopping = controller.stop();
+  const restarting = controller.start();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(opens, 1, 'the new camera waits');
+  release.resolve();
+  await stopping;
+  await restarting;
+  assert.equal(opens, 2);
+  assert.equal(controller.state, 'running');
+});
+
+test('stop aborts a camera that is still opening', async () => {
+  const pending = deferred();
+  let signal;
+  const { controller } = setup({ openCamera: (current, s) => { signal = s; return pending.promise; } });
+  const starting = controller.start();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(signal.aborted, false);
+  await controller.stop();
+  assert.equal(signal.aborted, true);
+  pending.resolve(fakeCamera());
+  await starting;
+});

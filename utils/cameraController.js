@@ -5,16 +5,21 @@ export function createCameraController({ loadModel, openCamera, onStatus }) {
   let session = 0;
   let camera = null;
   let state = 'idle';
+  let lastRelease = Promise.resolve();
+  let pendingOpen = null;
 
   function setState(next, message = '') {
     state = next;
     onStatus(next, message);
   }
 
-  async function release() {
+  function release() {
+    pendingOpen?.abort();
+    pendingOpen = null;
     const current = camera;
     camera = null;
-    if (current) await current.stop();
+    if (current) lastRelease = current.stop();
+    return lastRelease;
   }
 
   async function start() {
@@ -24,10 +29,14 @@ export function createCameraController({ loadModel, openCamera, onStatus }) {
 
     try {
       await loadModel();
+      // A quick Stop then Start waits for the old camera to let go first.
+      await lastRelease;
       if (id !== session) return;
 
       setState('starting', 'Waiting for camera permission…');
-      const opened = await openCamera(() => id === session);
+      pendingOpen = new AbortController();
+      const opened = await openCamera(() => id === session, pendingOpen.signal);
+      if (id === session) pendingOpen = null;
       if (id !== session) {
         await opened.stop();
         return;

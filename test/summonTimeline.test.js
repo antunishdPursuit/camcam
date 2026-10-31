@@ -1,34 +1,34 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ATTACKS, BITE_SPEED, DEFAULT_BITE, RUN_FPS, biteTiming, clipFrame, effectDuration, effectFrame
+  BITE_SPEED, DEFAULT_BITE, RUN_FPS, biteTiming, clipFrame, effectDuration, effectFrame
 } from '../utils/summonTimeline.js';
 
 const BITES = [DEFAULT_BITE, { snapMs: 400, durationMs: 1600 }, { snapMs: 1500, durationMs: 1650 }];
 
-const sample = (reduced, bite, style) => {
+const sample = (reduced, bite) => {
   const frames = [];
-  for (let t = 0; t <= effectDuration(reduced, bite, style) + 100; t += 10) {
-    frames.push({ t, ...effectFrame(t, reduced, bite, style) });
+  for (let t = 0; t <= effectDuration(reduced, bite) + 100; t += 10) {
+    frames.push({ t, ...effectFrame(t, reduced, bite) });
   }
   return frames;
 };
 
 const CASES = [
-  ...ATTACKS.flatMap((style) => BITES.map((bite) => ({ reduced: false, style, bite }))),
-  ...BITES.map((bite) => ({ reduced: true, style: 'chase', bite }))
+  ...BITES.map((bite) => ({ reduced: false, bite })),
+  ...BITES.map((bite) => ({ reduced: true, bite }))
 ];
 
-for (const { reduced, style, bite } of CASES) {
-  const label = `${reduced ? 'reduced motion' : style}, snap ${bite.snapMs}/${bite.durationMs} ms`;
-  const frames = sample(reduced, bite, style);
+for (const { reduced, bite } of CASES) {
+  const label = `${reduced ? 'reduced motion' : 'full motion'}, snap ${bite.snapMs}/${bite.durationMs} ms`;
+  const frames = sample(reduced, bite);
 
   test(`${label}: the camera starts and ends full size and visible in its box`, () => {
-    const last = effectFrame(effectDuration(reduced, bite, style), reduced, bite, style);
+    const last = effectFrame(effectDuration(reduced, bite), reduced, bite);
     assert.equal(last.boxShrink, 0);
     assert.equal(last.boxAlpha, 1);
     assert.equal(last.done, true);
-    assert.equal(effectFrame(effectDuration(reduced, bite, style) - 1, reduced, bite, style).done, false);
+    assert.equal(effectFrame(effectDuration(reduced, bite) - 1, reduced, bite).done, false);
   });
 
   test(`${label}: the camera is fully shrunk before the fox reaches it`, () => {
@@ -68,6 +68,17 @@ for (const { reduced, style, bite } of CASES) {
   });
 
   if (!reduced) {
+    test(`${label}: the camera holds full size for a beat, then shrinks gently`, () => {
+      assert.ok(frames.filter((f) => f.t < 150).every((f) => f.boxShrink === 0), 'no instant shrink');
+      const start = frames.find((f) => f.boxShrink > 0).t;
+      const end = frames.find((f) => f.boxShrink === 1).t;
+      assert.ok(end - start >= 700, `shrink takes ${end - start} ms`);
+      for (let i = 1; frames[i].t <= end; i++) {
+        const step = frames[i].boxShrink - frames[i - 1].boxShrink;
+        assert.ok(step >= 0 && step < 0.025, `smooth at t=${frames[i].t}`);
+      }
+    });
+
     test(`${label}: the fox never stops: it closes in, then carries straight on`, () => {
       assert.equal(frames[0].foxGap, 1, 'starts off the right edge');
       const firstSnap = frames.find((f) => f.gulp === 1);
@@ -89,51 +100,29 @@ for (const { reduced, style, bite } of CASES) {
       assert.deepEqual(seen, order.filter((s) => seen.includes(s)));
       assert.ok(seen.includes('run') && seen.includes('bite'));
     });
+
+    test(`${label}: the camera runs steadily and is caught where it got to`, () => {
+      assert.equal(frames[0].camTravel, 0);
+      for (let i = 1; i < frames.length; i++) {
+        if (frames[i].phase === 'return') break;
+        assert.ok(frames[i].camTravel >= frames[i - 1].camTravel, `t=${frames[i].t}`);
+      }
+      assert.equal(frames.find((f) => f.gulp === 1).camTravel, 1);
+      assert.ok(frames.every((f) => f.caughtTravel === 1));
+    });
   }
 }
 
-for (const bite of BITES) {
-  test(`chase, snap ${bite.snapMs} ms: the camera runs steadily and is caught where it got to`, () => {
-    const frames = sample(false, bite, 'chase');
-    assert.equal(frames[0].camTravel, 0);
-    for (let i = 1; i < frames.length; i++) {
-      if (frames[i].phase === 'return') break;
-      assert.ok(frames[i].camTravel >= frames[i - 1].camTravel, `t=${frames[i].t}`);
-    }
-    const snap = frames.find((f) => f.gulp === 1);
-    assert.equal(snap.camTravel, 1);
-    assert.ok(frames.every((f) => f.caughtTravel === 1));
-    assert.ok(frames.every((f) => f.tremble === 0));
-  });
-
-  test(`snatch, snap ${bite.snapMs} ms: the camera holds its spot and trembles until the jaws take it`, () => {
-    const frames = sample(false, bite, 'snatch');
-    assert.ok(frames.every((f) => f.camTravel === 0 && f.caughtTravel === 0));
-    assert.ok(frames.some((f) => f.tremble === 1));
-    assert.ok(frames.filter((f) => f.boxHeld).every((f) => f.tremble === 0));
-  });
-
-  test(`snap ${bite.snapMs} ms: the snatch reaches the camera sooner than the chase`, () => {
-    const at = (style) => sample(false, bite, style).find((f) => f.gulp === 1).t;
-    assert.ok(at('snatch') < at('chase'));
-  });
-}
-
-test('reduced motion: no running, fleeing, trembling, shake or streaks; the jaws cut once to the snap', () => {
-  for (const f of sample(true, DEFAULT_BITE, 'chase')) {
+test('reduced motion: no running, fleeing, shake or streaks; the jaws cut once to the snap', () => {
+  for (const f of sample(true, DEFAULT_BITE)) {
     assert.equal(f.shake, 0);
     assert.equal(f.streaks, 0);
     assert.equal(f.foxGap, 0);
     assert.equal(f.foxCross, 0);
     assert.equal(f.camTravel, 0);
-    assert.equal(f.tremble, 0);
     assert.equal(f.sprite, 'bite');
     assert.ok(f.spriteMs === 0 || f.spriteMs === DEFAULT_BITE.snapMs);
   }
-});
-
-test('an unknown attack style falls back to the chase', () => {
-  assert.deepEqual(effectFrame(500, false, DEFAULT_BITE, 'nonsense'), effectFrame(500, false, DEFAULT_BITE, 'chase'));
 });
 
 test('bite timing follows the clip and the playback speed', () => {

@@ -38,7 +38,6 @@ Add `?proof` to the address (http://localhost:5173/?proof) for tuning tools that
 - **Test Summon** plays the fox attack without making the gesture (works with the camera off).
 - A live readout shows the thumb-to-index ring gap in palm lengths against the charge and close thresholds, whether the other fingers count as raised, and the gesture state.
 - `?proof&at=1500` freezes the attack at that millisecond, to inspect a single frame.
-- `?attack=snatch` (works with or without `?proof`) swaps the chase, where the camera runs and the fox runs it down, for a snatch, where the camera trembles in place and the fox lunges straight in.
 
 The thresholds live in `SUMMON_DEFAULTS` in `utils/summonGesture.js`; fox size and fit in `PLACEMENT` in `utils/foxPlacement.js`.
 

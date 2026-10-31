@@ -1,68 +1,32 @@
-# camcam
+# CamCam
 
-Browser hand-tracking camera experience. MediaPipe Hands tracks your hand in the page; make the summon gesture and a fox answers.
+[Try CamCam live](https://antunishdpursuit.github.io/camcam/)
 
-## How to use it
+A hand-tracking camera experience that runs in the browser. Hold up an OK ring to charge fire along your fingers, close it, and an eye opens in the ring. Then a fox runs in, chases down the camera view and swallows it.
 
-1. Choose Start Camera and allow camera access.
-2. Hold a near-OK ring: thumb and index fingertips close but not touching, other three fingers up. Small flames lick along your fingers, starting at the fingertips and creeping down as the charge builds, and the label reads **Charging**.
-3. After one second it reads **Charged**.
-4. Close the ring (fingertips together). A fox eye opens in the ring, and a moment later a fox gallops in from the right edge of the page on fire-bursting paws while the camera view shrinks and runs; the fox catches it on the move and the camera view is pulled into its mouth as its jaws close; then it runs off across the page with its mouth shut. After a moment the camera view comes back.
+![The camera view: an OK hand with fire charging along the fingers](assets/readme/camera.jpg)
 
-The camera view is mirrored, like looking in a mirror. Closing well before **Charged** wastes the charge; open the ring to start again. Closing in the last stretch of the charge is held, and the fox comes as soon as the charge completes. Brief tracking dropouts (up to about half a second) keep the charge. Escape cancels a charge or the effect, and nothing relights until you drop the ring pose or take your hand out of view; Stop turns the camera off at any time. With reduced motion enabled in your system settings, the fox fades in and out in place instead of crossing the page.
+| The eye opens | The fox gives chase | The jaws close |
+| --- | --- | --- |
+| ![A fox eye glowing inside the OK ring](assets/readme/eye.jpg) | ![The fox running in as the camera view flees](assets/readme/fox-chase.jpg) | ![The fox's jaws reaching the camera view](assets/readme/fox-bite.jpg) |
 
-## Artwork
+## How to Use It
 
-The fox and flame artwork lives in `assets/summon/`. Without it the app still works, but without the fox: the fire falls back to simple drawn flames and the camera view still shrinks, vanishes and returns. The folder holds (`sprites/sprites.json` must be there for anything in it to load, the flames included):
+1. Choose **Start Camera** and allow camera access.
+2. Hold a near-OK ring: thumb and index fingertips close but not touching, other fingers up. It reads **Charging**, then **Charged** after about a second.
+3. Close the ring. The eye opens, the fox comes, and the camera view returns a moment later.
 
-- `flame-c.webp`, `flame-d.webp`: flame sprites with brightness-based transparency
-- `sprites/*.webp`: the full-body fox's run loops and bite clips, each a grid sprite sheet with a transparent background
-- `sprites/sprites.json`: describes the clips. `video` is the source frame size; each clip has `sheet`, `frameW`/`frameH`, `cols`, `count`, `fps`, `sourceCrop` (its position in the source frame) and `fox` (which fox it shows; a summon pairs a run and a bite of the same fox). Bite clips also have `snapFrame` (when the jaws shut), `mouth` (where they meet, as fractions of the source frame) and `gape` (open-jaw height as a fraction of the frame). Every clip also lists, per frame, `mouths` (the mouth point, where the swallowed camera is held) and `feet` (the paws touching down, where the spirit fire bursts), both as fractions of the source frame. Without them the camera stays at the snap point and the paws don't burn.
-
-Each summon picks a random bite clip and a run loop of the same fox. An optional `carry` list holds closed-mouth run loops (same fields as `run`) used after the bite; without it the fox runs off on its ordinary run loop.
-
-Only those files are loaded. `npm run check-art` lists which files in `assets/summon/` the app needs (and any that are missing) and which it never uses, so leftovers don't get committed. It only reads; it deletes nothing.
-
-## Live site
-
-https://antunishdpursuit.github.io/camcam/ is served by GitHub Pages straight from `main` (Settings → Pages → Deploy from a branch, `main`, `/ (root)`). There is no build step, so run `npm test` before merging.
-
-## Run locally
-
-Requires Node 20.11 or newer. No install step.
-
-```bash
-npm start
-```
-
-Open http://localhost:5173. Browsers only allow camera access over HTTPS or localhost.
-
-### Developer mode
-
-Add `?proof` to the address (http://localhost:5173/?proof) for tuning tools that stay hidden otherwise:
-
-- **Test Summon** plays the fox attack without making the gesture (works with the camera off).
-- A live readout shows the thumb-to-index ring gap in palm lengths against the charge and close thresholds, whether the other fingers count as raised, and the gesture state.
-- `?proof&at=1500` freezes the attack at that millisecond, to inspect a single frame; add `&bite=N` to pick which bite clip it shows (counting from 0, so `&bite=1` is the second).
-
-The thresholds live in `SUMMON_DEFAULTS` in `utils/summonGesture.js` and `HAND_FILTER_DEFAULTS` in `utils/handSelection.js`; fox size and fit in `PLACEMENT` in `utils/foxPlacement.js`.
-
-## Test
-
-```bash
-npm test
-```
-
-## Code layout
-
-- `main.js` wires the page together.
-- `utils/camera.js` and `utils/cameraController.js` handle the camera and the start/stop lifecycle.
-- `utils/handSelection.js` filters out phantom background hands.
-- `utils/summonGesture.js` is the charge/summon state machine.
-- `utils/summonTimeline.js` (timing and clip playback, including the eye), `utils/handFire.js` (where the finger flames and the eye go), `utils/foxPlacement.js` (where the fox goes and how far the camera view shrinks) and `utils/summonEffect.js` (drawing; picks the clips) make up the fire and fox effect; `utils/summonArt.js` loads the artwork.
-- `utils/landmarks.js` holds shared hand-landmark math; `utils/drawUtils.js` draws the video frame and the hand's landmark dots.
-- `scripts/serve.js` is the local dev server; `scripts/check-art.js` checks the artwork folder.
+Escape cancels, **Sound** mutes, and **Stop Camera** turns the camera off.
 
 ## Privacy
 
-Camera frames are processed in the browser and are never uploaded or recorded. The page asks for video only, never the microphone. It downloads the MediaPipe model and scripts from jsDelivr (pinned versions) and the page font from Google Fonts, so it needs a network connection on first load; no other requests are made while the camera runs.
+Camera frames stay in your browser and are never uploaded or recorded. The page asks for video only, never the microphone.
+
+## Credits
+
+- Sounds: CC0 recordings from Freesound, a [wolf howl](https://freesound.org/people/betchkal/sounds/500646/) and a [bite](https://freesound.org/people/Lunevix/sounds/464322/).
+- Screenshots: a CC0 [OK hand photo](https://commons.wikimedia.org/wiki/File:OK_Hand_Gesture.jpg) from Wikimedia Commons, cropped with the face blurred.
+
+## Development
+
+Requires Node 20.11 or newer, no install step. Run `npm start` and open http://localhost:5173, or run the tests with `npm test`. Add `?proof` to the address for a **Test Summon** button and tuning readout.

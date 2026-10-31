@@ -29,9 +29,26 @@ export function alongFinger(hand, finger, along, width, height) {
   return { x: (a.x + (b.x - a.x) * f) * width, y: (a.y + (b.y - a.y) * f) * height };
 }
 
-// The hole of the closed thumb–index ring, where the eye opens.
-const RING_HOLE = [3, 4, 6, 7, 8];
+// The hole of the closed thumb–index ring, where the eye opens: the ring
+// traced from the thumb's knuckle out to its tip, across to the index tip and
+// back down to the index knuckle. Its area centroid is the middle of the hole;
+// a plain average of the joints would lean toward the touching fingertips.
+const RING_LOOP = [2, 3, 4, 8, 7, 6, 5];
 export function ringCenter(hand, width, height) {
-  const sum = RING_HOLE.reduce((s, i) => ({ x: s.x + hand[i].x, y: s.y + hand[i].y }), { x: 0, y: 0 });
-  return { x: (sum.x / RING_HOLE.length) * width, y: (sum.y / RING_HOLE.length) * height };
+  const pts = RING_LOOP.map((i) => ({ x: hand[i].x * width, y: hand[i].y * height }));
+  let area = 0;
+  let cx = 0;
+  let cy = 0;
+  pts.forEach((a, k) => {
+    const b = pts[(k + 1) % pts.length];
+    const cross = a.x * b.y - b.x * a.y;
+    area += cross;
+    cx += (a.x + b.x) * cross;
+    cy += (a.y + b.y) * cross;
+  });
+  // A ring seen edge-on has no area; fall back to the joints' average.
+  if (Math.abs(area) < 1e-6) {
+    return { x: pts.reduce((s, p) => s + p.x, 0) / pts.length, y: pts.reduce((s, p) => s + p.y, 0) / pts.length };
+  }
+  return { x: cx / (3 * area), y: cy / (3 * area) };
 }

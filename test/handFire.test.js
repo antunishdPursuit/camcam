@@ -36,3 +36,15 @@ test('the eye sits in the thumb–index ring', () => {
   const xs = ring.map((p) => p.x * W);
   assert.ok(c.x >= Math.min(...xs) && c.x <= Math.max(...xs));
 });
+
+test('the eye sits in the middle of an OK ring, not up at the touching tips', () => {
+  // An OK ring as a circle (center 0.5, 0.5; radius 0.1) with the thumb up the
+  // left side and the index up the right, tips touching at the top. The
+  // joints bunch toward the tips, as on a real hand.
+  const at = (deg) => ({ x: 0.5 + 0.1 * Math.cos((deg * Math.PI) / 180), y: 0.5 - 0.1 * Math.sin((deg * Math.PI) / 180), z: 0 });
+  const ok = Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.9, z: 0 }));
+  Object.assign(ok, { 2: at(240), 3: at(160), 4: at(95), 8: at(85), 7: at(30), 6: at(-30), 5: at(-60) });
+  const c = ringCenter(ok, W, H);
+  const r = 0.1 * H;
+  assert.ok(Math.hypot(c.x - 0.5 * W, c.y - 0.5 * H) < 0.2 * r, `eye at (${c.x.toFixed(1)}, ${c.y.toFixed(1)})`);
+});

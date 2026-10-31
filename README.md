@@ -39,7 +39,7 @@ Add `?proof` to the address (http://localhost:5173/?proof) for tuning tools that
 
 - **Test Summon** plays the fox attack without making the gesture (works with the camera off).
 - A live readout shows the thumb-to-index ring gap in palm lengths against the charge and close thresholds, whether the other fingers count as raised, and the gesture state.
-- `?proof&at=1500` freezes the attack at that millisecond, to inspect a single frame; add `&bite=1` (and so on) to pick which bite clip it shows.
+- `?proof&at=1500` freezes the attack at that millisecond, to inspect a single frame; add `&bite=N` to pick which bite clip it shows (counting from 0, so `&bite=1` is the second).
 
 The thresholds live in `SUMMON_DEFAULTS` in `utils/summonGesture.js` and `HAND_FILTER_DEFAULTS` in `utils/handSelection.js`; fox size and fit in `PLACEMENT` in `utils/foxPlacement.js`.
 

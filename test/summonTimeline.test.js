@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  BITE_SPEED, DEFAULT_BITE, RUN_FPS, biteTiming, clipFrame, effectDuration, effectFrame
+  BITE_SPEED, DEFAULT_BITE, EYE_MS, RUN_FPS, biteTiming, clipFrame, effectDuration, effectFrame, eyeState
 } from '../utils/summonTimeline.js';
 
 const BITES = [DEFAULT_BITE, { snapMs: 400, durationMs: 1600 }, { snapMs: 1500, durationMs: 1650 }];
@@ -138,4 +138,25 @@ test('run clips loop and bite clips hold their last frame', () => {
   assert.equal(clipFrame(clip, (12 / RUN_FPS) * 1000 + 1, true), 2);
   assert.equal(clipFrame(clip, 60000, false), 9);
   assert.equal(clipFrame(clip, -5, false), 0);
+});
+
+test('the eye opens quickly, narrows its pupil, then fades as the attack starts', () => {
+  assert.equal(eyeState(0).open, 0);
+  assert.equal(eyeState(300).open, 1);
+  assert.equal(eyeState(EYE_MS - 1).alpha, 1, 'fully visible until the attack');
+  assert.ok(eyeState(EYE_MS - 50).slit < eyeState(300).slit, 'pupil narrows');
+  assert.equal(eyeState(EYE_MS + 500).alpha, 0, 'gone while the camera shrinks');
+  for (let t = 10; t <= EYE_MS + 600; t += 10) {
+    assert.ok(eyeState(t).open >= eyeState(t - 10).open, `never blinks shut, t=${t}`);
+  }
+});
+
+test('reduced motion: the eye fades in already open with a fixed pupil', () => {
+  for (let t = 0; t <= EYE_MS + 600; t += 10) {
+    const e = eyeState(t, true);
+    assert.equal(e.open, 1);
+    assert.equal(e.slit, 0.5);
+  }
+  assert.equal(eyeState(0, true).alpha, 0);
+  assert.equal(eyeState(EYE_MS + 500, true).alpha, 0);
 });

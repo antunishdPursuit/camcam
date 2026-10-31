@@ -5,9 +5,9 @@ Browser hand-tracking camera experience. MediaPipe Hands tracks your hand in the
 ## How to use it
 
 1. Choose Start Camera and allow camera access.
-2. Hold a near-OK ring: thumb and index fingertips close but not touching, other three fingers up. Fire lights on your hand and the label reads **Charging**.
+2. Hold a near-OK ring: thumb and index fingertips close but not touching, other three fingers up. Small flames lick along your fingers, starting at the fingertips and creeping down as the charge builds, and the label reads **Charging**.
 3. After one second it reads **Charged**.
-4. Close the ring (fingertips together). A fox gallops in from the right edge of the page on fire-bursting paws while the camera view shrinks and runs; the fox catches it on the move and the camera view is pulled into its mouth as its jaws close; then it runs off across the page with its mouth shut. After a moment the camera view comes back.
+4. Close the ring (fingertips together). A fox eye opens in the ring, and a moment later a fox gallops in from the right edge of the page on fire-bursting paws while the camera view shrinks and runs; the fox catches it on the move and the camera view is pulled into its mouth as its jaws close; then it runs off across the page with its mouth shut. After a moment the camera view comes back.
 
 The camera view is mirrored, like looking in a mirror. Closing before **Charged** wastes the charge; open the ring to start again. Escape cancels a charge or the effect; Stop turns the camera off at any time. With reduced motion enabled in your system settings, the fox fades in and out in place instead of crossing the page.
 
@@ -53,7 +53,7 @@ npm test
 - `utils/camera.js` and `utils/cameraController.js` handle the camera and the start/stop lifecycle.
 - `utils/handSelection.js` filters out phantom background hands.
 - `utils/summonGesture.js` is the charge/summon state machine.
-- `utils/summonTimeline.js` (timing and clip playback), `utils/foxPlacement.js` (where the fox goes and how far the camera view shrinks) and `utils/summonEffect.js` (drawing; picks the clips) make up the fire and fox effect; `utils/summonArt.js` loads the artwork.
+- `utils/summonTimeline.js` (timing and clip playback, including the eye), `utils/handFire.js` (where the finger flames and the eye go), `utils/foxPlacement.js` (where the fox goes and how far the camera view shrinks) and `utils/summonEffect.js` (drawing; picks the clips) make up the fire and fox effect; `utils/summonArt.js` loads the artwork.
 - `utils/landmarks.js` holds shared hand-landmark math.
 
 ## Privacy

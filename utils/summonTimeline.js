@@ -134,6 +134,25 @@ function reducedFrame(t, bite) {
   return frame;
 }
 
+// The eye that opens in the closed ring when the summon fires. The attack
+// timeline above starts EYE_MS later; the eye fades as the camera shrinks.
+export const EYE_MS = 900;
+const EYE_OPEN_MS = 280;
+const EYE_FADE_MS = 500;
+
+// ms: time since the summon. open: 0 = lids shut, 1 = wide open. alpha: its
+// opacity. slit: pupil width, narrowing from 1 to 0.5 as it focuses.
+// Reduced motion: the eye fades in already open, with a fixed pupil.
+export function eyeState(ms, reducedMotion = false) {
+  const fade = 1 - progress(ms, EYE_MS, EYE_MS + EYE_FADE_MS);
+  if (reducedMotion) return { open: 1, alpha: progress(ms, 0, EYE_OPEN_MS) * fade, slit: 0.5 };
+  return {
+    open: easeOut(progress(ms, 0, EYE_OPEN_MS)),
+    alpha: fade,
+    slit: 1 - 0.5 * easeInOutSine(progress(ms, EYE_OPEN_MS + 150, EYE_MS - 100))
+  };
+}
+
 // Sprite clip playback. Clips are generated at their own fps; the run loops at
 // RUN_FPS and the bite plays a little faster than generated for snap.
 export const RUN_FPS = 20;

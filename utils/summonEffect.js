@@ -1,17 +1,18 @@
-import { biteTiming, clipFrame, effectFrame } from './summonTimeline.js';
+import { EYE_MS, biteTiming, clipFrame, effectFrame, eyeState } from './summonTimeline.js';
 import { PLACEMENT, fleeDistance, foxRectAt, foxSize, jawsX, swallowScale } from './foxPlacement.js';
-import { LANDMARK, palmLength } from './landmarks.js';
+import { palmLength } from './landmarks.js';
+import { FINGERS, alongFinger, fireReach, ringCenter } from './handFire.js';
 
 // Summon effect renderer.
-// - Fire: drawn on the camera-box canvas, anchored to the thumb/index ring
-//   while charging.
+// - Fire: drawn on the camera-box canvas, small flames along the fingers while
+//   charging. When the summon fires, an eye opens in the closed ring, and the
+//   fox attack starts EYE_MS later.
 // - Fox attack: drawn on a full-page canvas from sprite sheets. The full-body
 //   fox runs in from the right edge while the camera box shrinks, plays a bite
 //   clip whose jaws snap shut on the box (which vanishes), runs on out the left
 //   edge, and the box comes back. Timing and clip playback live in
 //   summonTimeline.js, placement in foxPlacement.js.
 const FIRE = ['#ffd27a', '#ff9a2e', '#ff5a1f', '#c2261b'];
-const RING_POINTS = [2, 3, 4, 6, 7, 8]; // thumb and index joints around the ring
 
 // `art` is an optional promise of { flames, fox } from loadSummonArt(), which
 // never rejects; either part may be null. Until it resolves, or for a missing
@@ -28,6 +29,7 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
   let charging = false;
   let fireLevel = 0;
   let sequenceStart = null;
+  let eyeAt = null;
   let reduced = false;
   let frameId = null;
   let lastTick = null;
@@ -40,58 +42,124 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
     return palmLength(hand, W, H);
   }
 
-  function emitFire(points, count, speed) {
+  // One small flame licking up from a point on a finger. Tip flames are a
+  // little bigger; all are short-lived so the fire hugs the fingers.
+  function emitFlame(p, palm, scale, speed) {
+    particles.push({
+      x: p.x + (Math.random() - 0.5) * palm * 0.06,
+      y: p.y + (Math.random() - 0.5) * palm * 0.06,
+      vx: (Math.random() - 0.5) * speed * 0.4,
+      vy: -(0.5 + Math.random() * 0.5) * speed,
+      life: 1,
+      decay: 1.8 + Math.random() * 1.2,
+      size: palm * scale * (0.7 + Math.random() * 0.6),
+      color: FIRE[Math.floor(Math.random() * FIRE.length)],
+      sprite: Math.floor(Math.random() * 2),
+      rotation: (Math.random() - 0.5) * 0.5
+    });
+  }
+
+  // Flames along every finger: at the tips first, creeping down to the base
+  // knuckles as the charge builds. Spawn rate is per second, so it doesn't
+  // depend on the frame rate.
+  function emitFingerFire(dt, level) {
     const palm = palmPx();
-    for (const p of points) {
-      for (let i = 0; i < count; i++) {
-        particles.push({
-          x: p.x + (Math.random() - 0.5) * palm * 0.25,
-          y: p.y + (Math.random() - 0.5) * palm * 0.25,
-          vx: (Math.random() - 0.5) * speed,
-          vy: -Math.random() * speed - palm * 0.6,
-          life: 1,
-          decay: 0.9 + Math.random() * 0.7,
-          size: palm * (0.12 + Math.random() * 0.18),
-          color: FIRE[Math.floor(Math.random() * FIRE.length)],
-          sprite: Math.floor(Math.random() * 2),
-          rotation: (Math.random() - 0.5) * 0.6
-        });
+    const reach = fireReach(level);
+    const rate = reduced ? 0.35 : 1;
+    const speed = palm * (reduced ? 0.35 : 0.7);
+    for (const finger of FINGERS) {
+      for (let n = poisson(dt * 26 * rate); n > 0; n--) {
+        emitFlame(alongFinger(hand, finger, 0, W, H), palm, 0.12, speed);
+      }
+      for (let n = poisson(dt * 40 * rate * reach); n > 0; n--) {
+        emitFlame(alongFinger(hand, finger, Math.random() * reach, W, H), palm, 0.08, speed);
       }
     }
   }
 
-  function handPoints() {
-    return hand ? RING_POINTS.map((i) => ({ x: hand[i].x * W, y: hand[i].y * H })) : [];
+  function poisson(mean) {
+    let n = Math.floor(mean);
+    if (Math.random() < mean - n) n++;
+    return n;
   }
 
-  // Warm glow filling the open ring between thumb and index tips. It grows as
-  // the charge builds and pulses once fully charged.
-  function drawRingGlow() {
+  // A faint ember glow traced along the burning part of each finger.
+  function drawFingerGlow(level) {
     const palm = palmPx();
-    const thumb = hand[LANDMARK.THUMB_TIP];
-    const index = hand[LANDMARK.INDEX_TIP];
-    const x = ((thumb.x + index.x) / 2) * W;
-    const y = ((thumb.y + index.y) / 2) * H;
-    const pulse = fireLevel >= 1 && !reduced ? 1 + 0.12 * Math.sin((lastTick ?? 0) / 110) : 1;
-    const r = palm * (0.35 + 0.45 * fireLevel) * pulse;
-    const glow = ctx.createRadialGradient(x, y, 0, x, y, r);
-    glow.addColorStop(0, 'rgba(255, 210, 122, 0.85)');
-    glow.addColorStop(0.4, 'rgba(255, 122, 26, 0.45)');
-    glow.addColorStop(1, 'rgba(194, 38, 27, 0)');
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
+    const reach = fireReach(level);
+    const flicker = reduced ? 1 : 0.85 + 0.15 * Math.sin((lastTick ?? 0) / 70);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (const [width, alpha] of [[0.22, 0.1], [0.09, 0.22]]) {
+      ctx.lineWidth = palm * width;
+      ctx.strokeStyle = `rgba(255, 128, 32, ${alpha * flicker * (0.4 + 0.6 * level)})`;
+      for (const finger of FINGERS) {
+        ctx.beginPath();
+        for (let s = 0; s <= 6; s++) {
+          const p = alongFinger(hand, finger, (s / 6) * reach, W, H);
+          if (s === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+      }
+    }
   }
 
-  function drawFire(dt) {
+  // The eye that opens in the closed ring when the summon fires: an almond of
+  // glowing gold with a slit pupil and a red halo. It follows the hand while
+  // tracked and stays put if the hand is lost.
+  function drawEye(ms) {
+    const e = eyeState(ms, reduced);
+    if (e.alpha <= 0) return;
+    if (hand) eyeAt = { ...ringCenter(hand, W, H), w: palmPx() * 0.2 };
+    eyeAt ??= { x: W / 2, y: H / 2, w: H * 0.05 };
+    const { x, y, w } = eyeAt;
+    const h = w * 0.5 * e.open;
+    ctx.save();
+    ctx.globalAlpha = e.alpha;
+    ctx.translate(x, y);
+
+    const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, w * 2.2);
+    halo.addColorStop(0, `rgba(255, 90, 31, ${0.55 * e.open})`);
+    halo.addColorStop(1, 'rgba(194, 38, 27, 0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(0, 0, w * 2.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (h > 0.5) {
+      const almond = new Path2D();
+      almond.moveTo(-w, 0);
+      almond.quadraticCurveTo(0, -h * 2, w, 0);
+      almond.quadraticCurveTo(0, h * 2, -w, 0);
+      ctx.save();
+      ctx.clip(almond);
+      const iris = ctx.createRadialGradient(0, 0, 0, 0, 0, w);
+      iris.addColorStop(0, '#fff3b8');
+      iris.addColorStop(0.35, '#ffc23d');
+      iris.addColorStop(0.75, '#ff7a1a');
+      iris.addColorStop(1, '#a8201a');
+      ctx.fillStyle = iris;
+      ctx.fillRect(-w, -h * 2, w * 2, h * 4);
+      ctx.fillStyle = '#120404';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, w * 0.13 * e.slit, h * 0.95, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      ctx.lineWidth = Math.max(1.5, w * 0.09);
+      ctx.strokeStyle = '#2a0805';
+      ctx.stroke(almond);
+    }
+    ctx.restore();
+  }
+
+  function drawFire(dt, eyeMs) {
     ctx.clearRect(0, 0, W, H);
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     if (charging && hand) {
-      const count = reduced || fireLevel < 0.5 ? 1 : 2;
-      emitFire(handPoints(), count, palmPx() * (reduced ? 0.3 : 0.5 + 0.4 * fireLevel));
-      drawRingGlow();
+      drawFingerGlow(fireLevel);
+      emitFingerFire(dt, fireLevel);
     }
     particles = particles.filter((p) => (p.life -= p.decay * dt) > 0);
     for (const p of particles) {
@@ -114,6 +182,7 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
       }
     }
     ctx.restore();
+    if (eyeMs !== null) drawEye(eyeMs);
   }
 
   // ---- Fox attack on the page ------------------------------------------
@@ -352,12 +421,13 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
   function tick(now) {
     const dt = lastTick === null ? 0 : Math.min((now - lastTick) / 1000, 0.1);
     lastTick = now;
-    drawFire(dt);
+    const elapsed = sequenceStart === null ? null : now - sequenceStart;
+    drawFire(dt, elapsed);
 
     let sequenceDone = true;
-    if (sequenceStart !== null) {
-      const f = effectFrame(now - sequenceStart, reduced, chosen?.timing);
-      drawAttack(f, now, dt);
+    if (elapsed !== null) {
+      const f = effectFrame(Math.max(0, elapsed - EYE_MS), reduced, chosen?.timing);
+      if (elapsed >= EYE_MS) drawAttack(f, now, dt);
       sequenceDone = f.done;
       if (f.done) {
         sequenceStart = null;
@@ -401,7 +471,13 @@ export function createSummonEffect({ boxCanvas, pageCanvas, box, camera, reduced
     play() {
       if (sequenceStart !== null) return;
       reduced = reducedMotion();
-      if (hand) emitFire(handPoints(), reduced ? 4 : 14, reduced ? 60 : 220);
+      if (hand) {
+        const palm = palmPx();
+        for (const finger of FINGERS) {
+          for (let n = reduced ? 1 : 4; n > 0; n--) emitFlame(alongFinger(hand, finger, 0, W, H), palm, 0.14, palm * 1.2);
+        }
+      }
+      eyeAt = null;
       chosen = pickClips();
       boxColors = readBoxColors();
       sequenceStart = performance.now();

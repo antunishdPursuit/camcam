@@ -23,6 +23,10 @@ Each summon picks a random bite clip and a run loop of the same fox. An optional
 
 Only those files are loaded. `npm run check-art` lists which files in `assets/summon/` the app needs (and any that are missing) and which it never uses, so leftovers don't get committed. It only reads; it deletes nothing.
 
+## Live site
+
+https://antunishdpursuit.github.io/camcam/ is deployed from `main` by `.github/workflows/pages.yml` (tests first, then deploy). One-time setup: in the repository's Settings → Pages, set Source to GitHub Actions.
+
 ## Run locally
 
 Requires Node 20 or newer. No install step.

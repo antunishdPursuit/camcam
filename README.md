@@ -1,6 +1,6 @@
 # CamCam
 
-[Try CamCam live](https://antunishdpursuit.github.io/camcam/)
+[Try CamCam live](https://project-keepsakes.github.io/camcam/)
 
 A hand-tracking camera experience that runs in the browser. Hold up an OK ring to charge fire along your fingers, close it, and an eye opens in the ring. Then a fox runs in, chases down the camera view and swallows it.
 

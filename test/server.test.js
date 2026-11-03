@@ -16,6 +16,8 @@ test('local server isolates public assets and rejects foreign authorities', asyn
   await writeFile(join(directory, '.git', 'HEAD'), 'private fixture');
   await writeFile(join(directory, 'assets', 'image.svg'), '<svg/>');
   await writeFile(join(directory, 'assets', '.private.txt'), 'private fixture');
+  await writeFile(join(directory, '.git', 'config.json'), 'private fixture');
+  await symlink(join(directory, '.git'), join(directory, 'assets', 'internal'), 'junction');
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const port = server.address().port;
   const get = (path, headers = {}, method = 'GET') => new Promise((resolve, reject) => {
@@ -27,7 +29,7 @@ test('local server isolates public assets and rejects foreign authorities', asyn
   assert.equal((await get('/')).status, 200);
   assert.equal((await get('/assets/image.svg')).status, 200);
   assert.equal((await get('/', {}, 'HEAD')).body, '');
-  for (const path of ['/.git/HEAD', '/package.json', '/scripts/serve.js', '/assets/.private.txt', '/assets/%2eprivate.txt', '/assets/..%5c.git/HEAD']) assert.notEqual((await get(path)).status, 200, path);
+  for (const path of ['/.git/HEAD', '/package.json', '/scripts/serve.js', '/assets/.private.txt', '/assets/%2eprivate.txt', '/assets/..%5c.git/HEAD', '/assets/internal/config.json']) assert.notEqual((await get(path)).status, 200, path);
   assert.equal((await get('/', { Host: `foreign.example:${port}` })).status, 403);
   assert.equal((await get('/', { Origin: 'https://foreign.example' })).status, 403);
   assert.equal((await get('/', { Origin: `http://localhost:${port}` })).status, 200);

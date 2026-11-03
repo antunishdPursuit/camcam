@@ -51,7 +51,9 @@ export function createApp({ directory = root } = {}) {
     const canonicalRoot = await realpath(directory);
     const file = await realpath(resolve(canonicalRoot, '.' + pathname));
     const inside = relative(canonicalRoot, file);
-    if (inside.startsWith('..' + sep) || inside === '..' || isAbsolute(inside)) {
+    const target = '/' + inside.split(sep).join('/');
+    const publicTarget = ['/index.html', '/main.js', '/style.css'].includes(target) || /^\/(assets|utils)\//.test(target);
+    if (inside.startsWith('..' + sep) || inside === '..' || isAbsolute(inside) || !publicTarget || target.split('/').some(part => part.startsWith('.'))) {
       res.writeHead(403).end();
       return;
     }
